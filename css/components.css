@@ -464,11 +464,47 @@
 
 .task__row {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  grid-template-areas: "check body actions";
+  grid-template-columns: 20px 32px minmax(0, 1fr) auto;
+  grid-template-areas: "grip check body actions";
   align-items: start;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-2);
+}
+
+.task-list:not(.is-manual) .task__row {
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-areas: "check body actions";
+}
+
+.task__grip {
+  grid-area: grip;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 32px;
+  margin-top: 1px;
+  border-radius: var(--r-sm);
+  color: var(--line-strong);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.task:hover .task__grip,
+.task__grip:focus-visible {
+  opacity: 1;
+}
+
+.task__grip:hover {
+  color: var(--muted);
+  background: var(--surface-pressed);
+}
+
+.task__grip:active {
+  cursor: grabbing;
 }
 
 .task__check {
@@ -795,6 +831,42 @@
 }
 
 /* Перетаскивание */
+
+/* Перетаскивание */
+
+.task.is-dragging {
+  opacity: 0.35;
+  background: var(--surface-2);
+}
+
+.task.is-drop-before::before,
+.task.is-drop-after::after {
+  content: "";
+  position: absolute;
+  left: var(--sp-2);
+  right: var(--sp-2);
+  z-index: 2;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.task.is-drop-before::before {
+  top: -1px;
+}
+
+.task.is-drop-after::after {
+  bottom: -1px;
+}
+
+body.is-dragging-task {
+  cursor: grabbing;
+  user-select: none;
+}
+
+body.is-dragging-task .task:hover {
+  background: transparent;
+}
 
 .task.is-leaving {
   animation: task-out 160ms var(--ease) forwards;
@@ -1363,12 +1435,25 @@ kbd {
 
 @media (max-width: 640px) {
   .task__row {
+    grid-template-columns: 44px 44px minmax(0, 1fr);
+    grid-template-areas:
+      "grip check body"
+      "actions actions actions";
+    gap: 2px var(--sp-2);
+    padding: var(--sp-3) var(--sp-1);
+  }
+
+  .task-list:not(.is-manual) .task__row {
     grid-template-columns: 44px minmax(0, 1fr);
     grid-template-areas:
       "check body"
-      ". actions";
-    gap: 2px var(--sp-2);
-    padding: var(--sp-3) var(--sp-1);
+      "actions actions";
+  }
+
+  .task__grip {
+    width: var(--tap);
+    height: var(--tap);
+    opacity: 1;
   }
 
   .task__check {
@@ -1379,6 +1464,7 @@ kbd {
 
   .task__actions {
     opacity: 1;
+    padding-left: 2px;
     margin-top: var(--sp-1);
   }
 
@@ -1470,6 +1556,26 @@ kbd {
 }
 
 @media (pointer: coarse) {
+  .task__row {
+    grid-template-columns: 44px 44px minmax(0, 1fr);
+    grid-template-areas:
+      "grip check body"
+      "actions actions actions";
+  }
+
+  .task-list:not(.is-manual) .task__row {
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas:
+      "check body"
+      "actions actions";
+  }
+
+  .task__grip {
+    width: var(--tap);
+    height: var(--tap);
+    opacity: 1;
+  }
+
   .task__actions {
     opacity: 1;
   }  .task__check {

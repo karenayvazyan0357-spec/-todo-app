@@ -46,6 +46,7 @@
     refs.confirmText = byId('confirmText');
     refs.confirmOk = byId('confirmOk');
     refs.confirmCancel = byId('confirmCancel');
+    refs.helpDialog = byId('helpDialog');
 
     if (!refs.taskDialog || !refs.listDialog || !refs.confirmDialog) return;
     initialized = true;
@@ -308,6 +309,15 @@
     });
   }
 
+  // ——— Подсказка по клавишам ———
+
+  function openHelp() {
+    if (!refs.helpDialog) return;
+    if (!refs.helpDialog.open) refs.helpDialog.showModal();
+    var closeButton = refs.helpDialog.querySelector('[data-close-dialog]');
+    if (closeButton) closeButton.focus();
+  }
+
   // ——— Подтверждение ———
 
   function askConfirm(options) {
@@ -393,6 +403,12 @@
       if (event.target.closest('[data-close-dialog]')) refs.listDialog.close();
     });
 
+    if (refs.helpDialog) {
+      refs.helpDialog.addEventListener('click', function (event) {
+        if (event.target.closest('[data-close-dialog]')) refs.helpDialog.close();
+      });
+    }
+
     refs.confirmDialog.addEventListener('close', function () {
       var resolve = pendingConfirm;
       pendingConfirm = null;
@@ -404,6 +420,7 @@
     init: init,
     openTask: openTask,
     openList: openList,
+    openHelp: openHelp,
     askConfirm: askConfirm
   };
 })(window);

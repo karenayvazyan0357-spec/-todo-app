@@ -165,6 +165,7 @@
 
   function taskSignature(task) {
     var expanded = view().expanded && view().expanded.has(task.id) ? 1 : 0;
+    var sort = App.store ? App.store.get().settings.sort : 'manual';
     var subtasks = task.subtasks
       .map(function (subtask) {
         return subtask.id + ':' + (subtask.done ? 1 : 0) + ':' + subtask.title;
@@ -178,6 +179,7 @@
       task.listId,
       task.tags.join('\u0001'),
       task.order,
+      sort,
       expanded,
       subtasks
     ].join('\u0002');
@@ -309,6 +311,8 @@
 
   function createActionsBlock() {
     var actions = el('div', 'task__actions');
+    actions.appendChild(iconButton('move-up', 'arrow-up', 'Поднять задачу'));
+    actions.appendChild(iconButton('move-down', 'arrow-down', 'Опустить задачу'));
     actions.appendChild(iconButton('toggle-subs', 'checklist', 'Подзадачи'));
     actions.appendChild(iconButton('edit', 'pencil', 'Редактировать задачу'));
     actions.appendChild(iconButton('delete', 'trash', 'Удалить задачу'));
@@ -321,6 +325,13 @@
     if (animate) item.classList.add('task--enter');
 
     var row = el('div', 'task__row');
+
+    var grip = el('button', 'task__grip');
+    grip.type = 'button';
+    grip.dataset.action = 'grip';
+    grip.setAttribute('aria-label', 'Переставить задачу');
+    grip.title = 'Перетащите мышью или пальцем; с клавиатуры — ↑ / ↓';
+    grip.appendChild(icons.create('grip', 16));
 
     var check = el('button', 'task__check');
     check.type = 'button';
@@ -345,6 +356,7 @@
     subs.dataset.role = 'subs';
     body.appendChild(subs);
 
+    row.appendChild(grip);
     row.appendChild(check);
     row.appendChild(body);
     row.appendChild(createActionsBlock());
@@ -360,6 +372,11 @@
     item.dataset.sig = signature;
 
     item.classList.toggle('is-done', task.done);
+
+    var manualSort = currentState().settings.sort === 'manual';
+    var grip = item.querySelector('.task__grip');
+    grip.hidden = !manualSort;
+    grip.setAttribute('aria-label', 'Переставить задачу: ' + task.title);
 
     var check = item.querySelector('.task__check');
     check.setAttribute('aria-checked', task.done ? 'true' : 'false');
@@ -377,6 +394,13 @@
     fillSubs(subs, task);
 
     var actions = item.querySelector('.task__actions');
+    var moveUp = actions.querySelector('[data-action="move-up"]');
+    var moveDown = actions.querySelector('[data-action="move-down"]');
+    moveUp.hidden = !manualSort;
+    moveDown.hidden = !manualSort;
+    moveUp.setAttribute('aria-label', 'Поднять: ' + task.title);
+    moveDown.setAttribute('aria-label', 'Опустить: ' + task.title);
+
     var expand = actions.querySelector('[data-action="toggle-subs"]');
     var expanded = view().expanded.has(task.id);
     var doneCount = task.subtasks.filter(function (subtask) {
@@ -474,6 +498,7 @@
     var list = refs.taskList;
     var seen = {};
     var animate = visible.length <= 200 && !motionQuery.matches;
+    list.classList.toggle('is-manual', state.settings.sort === 'manual');
 
     visible.forEach(function (task, index) {
       var node = taskNodes.get(task.id);

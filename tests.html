@@ -132,6 +132,7 @@
     <script src="js/schema.js"></script>
     <script src="js/selectors.js"></script>
     <script src="js/state.js"></script>
+    <script src="js/parser.js"></script>
     <script>
       (function () {
         'use strict';
@@ -441,6 +442,127 @@
           var task = store.actions.addTask({ title: 'Переезд' });
           assertEqual(store.actions.addSubtask(task.id, '   '), null);
           assertEqual(store.get().tasks[0].subtasks.length, 0);
+        });
+
+        suite('Быстрый ввод');
+
+        test('пример из задания разбирается целиком', function () {
+          var parsed = App.parser.parseQuickInput('Купить молоко завтра !3 #дом', NOW);
+          assertEqual(parsed.title, 'Купить молоко');
+          assertEqual(parsed.due, TOMORROW);
+          assertEqual(parsed.priority, 3);
+          assertDeepEqual(parsed.tags, ['дом']);
+        });
+
+        test('сегодня, завтра и послезавтра', function () {
+          assertEqual(App.parser.parseQuickInput('Сегодня', NOW).due, TODAY);
+          assertEqual(App.parser.parseQuickInput('завтра', NOW).due, TOMORROW);
+          assertEqual(App.parser.parseQuickInput('послезавтра', NOW).due, App.util.shiftISODate(TODAY, 2));
+        });
+
+        test('дата вида 25.12 понимается как текущий год', function () {
+          var parsed = App.parser.parseQuickInput('Поздравить 25.12', NOW);
+          assertEqual(parsed.due, '2026-12-25');
+          assertEqual(parsed.title, 'Поздравить');
+        });
+
+        test('прошедшая дата без года переносится на следующий год', function () {
+          var parsed = App.parser.parseQuickInput('Отчёт 05.01', NOW);
+          assertEqual(parsed.due, '2027-01-05');
+        });
+
+        test('существующая дата с годом сохраняется', function () {
+          assertEqual(App.parser.parseQuickInput('Старт 01.09.2026', NOW).due, '2026-09-01');
+        });
+
+        test('некорректная дата остаётся в названии', function () {
+          var parsed = App.parser.parseQuickInput('Дедлайн 32.13', NOW);
+          assertEqual(parsed.due, null);
+          assertEqual(parsed.title, 'Дедлайн 32.13');
+        });
+
+        test('приоритеты !1, !2 и !3', function () {
+          assertEqual(App.parser.parseQuickInput('Низкий !1', NOW).priority, 1);
+          assertEqual(App.parser.parseQuickInput('Средний !2', NOW).priority, 2);
+          assertEqual(App.parser.parseQuickInput('Высокий !3', NOW).priority, 3);
+        });
+
+        test('теги собираются без решётки и без дублей', function () {
+          var parsed = App.parser.parseQuickInput('Позвонить #дом #дом #работа', NOW);
+          assertDeepEqual(parsed.tags, ['дом', 'работа']);
+          assertEqual(parsed.title, 'Позвонить');
+        });
+
+        test('лишние теги сверх лимита отбрасываются', function () {
+          var parsed = App.parser.parseQuickInput('Задача #a #b #c #d #e #f #g #h #i #j', NOW);
+          assertEqual(parsed.tags.length, 8);
+        });
+
+        test('только метаданные дают пустое название', function () {
+          var parsed = App.parser.parseQuickInput('завтра !2 #дом', NOW);
+          assertEqual(parsed.title, '');
+          assertEqual(parsed.due, TOMORROW);
+        });
+
+        test('неизвестные слова не теряются', function () {
+          assertEqual(App.parser.parseQuickInput('Отправить счёт в банк', NOW).title, 'Отправить счёт в банк');
+        });
+
+        test('запятая после подсказки не мешает', function () {
+          var parsed = App.parser.parseQuickInput('Позвонить завтра,', NOW);
+          assertEqual(parsed.due, TOMORROW);
+          assertEqual(parsed.title, 'Позвонить');
+        });
+
+        test('название ограничено 200 символами даже с подсказками', function () {
+          var parsed = App.parser.parseQuickInput(new Array(260).join('я') + ' завтра', NOW);
+          assertEqual(parsed.due, TOMORROW);
+          assertEqual(parsed.title.length, 200);
+        });
+
+        suite('Ручной порядок');
+
+        test('сдвиг меняет порядок и отменяется', function () {
+          function visible() {
+            return App.selectors.visibleTasks(store.get(), '', NOW).map(function (task) {
+              return task.title;
+            });
+          }
+
+          var store = makeStore();
+          var a = store.actions.addTask({ title: 'A' });
+          store.actions.addTask({ title: 'B' });
+          store.actions.addTask({ title: 'C' });
+          assertDeepEqual(visible(), ['C', 'B', 'A']);
+
+          assert(store.actions.moveTaskBy(a.id, -1) !== null, 'сдвиг выполнен');
+          assertDeepEqual(visible(), ['C', 'A', 'B']);
+          store.undo();
+          assertDeepEqual(visible(), ['C', 'B', 'A']);
+        });
+
+        test('за границу списка сдвинуть нельзя', function () {
+          var store = makeStore();
+          var a = store.actions.addTask({ title: 'A' });
+          store.actions.addTask({ title: 'B' });
+          var tasks = App.selectors.visibleTasks(store.get(), '', NOW);
+          var first = tasks[0];
+          var last = tasks[tasks.length - 1];
+          assertEqual(store.actions.moveTaskBy(first.id, -1), null);
+          assertEqual(store.actions.moveTaskBy(last.id, 1), null);
+        });
+
+        test('перестановка относительно другой задачи', function () {
+          var store = makeStore();
+          var a = store.actions.addTask({ title: 'A' });
+          store.actions.addTask({ title: 'B' });
+          var c = store.actions.addTask({ title: 'C' });
+          // Исходно C, B, A. Ставим A после C.
+          store.actions.moveTaskRelative(a.id, c.id, true);
+          var order = App.selectors.visibleTasks(store.get(), '', NOW).map(function (task) {
+            return task.title;
+          });
+          assertDeepEqual(order, ['C', 'A', 'B']);
         });
 
         suite('Миграция и валидация');

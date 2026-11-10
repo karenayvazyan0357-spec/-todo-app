@@ -7,6 +7,7 @@
   var store = null;
   var refs = {};
   var warnedSave = false;
+  var DEFAULT_HINT = 'Enter — добавить. Подсказки: «завтра», «!3», «#дом».';
 
   function byId(id) {
     return document.getElementById(id);
@@ -29,6 +30,7 @@
       scrim: byId('scrim'),
       listNav: byId('listNav'),
       addListBtn: byId('addListBtn'),
+      helpBtn: byId('helpBtn'),
       pageTitle: byId('pageTitle'),
       statTotal: byId('statTotal'),
       statTotalWord: byId('statTotalWord'),
@@ -38,6 +40,7 @@
       filterChips: byId('filterChips'),
       sortSelect: byId('sortSelect'),
       composer: byId('composer'),
+      composerHint: byId('composerHint'),
       taskInput: byId('taskInput'),
       taskList: byId('taskList'),
       emptyState: byId('emptyState'),
@@ -53,7 +56,14 @@
     App.dialogs.init();
     store.subscribe(handleChange);
     bindEvents();
+    App.dnd.init({
+      list: refs.taskList,
+      onMoved: function (taskId) {
+        focusTaskAction(taskId, 'grip');
+      }
+    });
     App.render.update('init');
+    updateComposerHint();
 
     if (loaded.warning) {
       App.ui.toast(loaded.warning, { variant: 'warn', duration: 10000 });
@@ -122,7 +132,39 @@
     return null;
   }
 
-  // ——— Добавление ———
+  // ——— Быстрый ввод ———
+
+  function describeParsed(parsed) {
+    var parts = [];
+    if (parsed.due) {
+      var due = App.util.formatDue(parsed.due, new Date());
+      if (due) parts.push('срок: ' + due.label.toLowerCase());
+    }
+    if (parsed.priority) parts.push('приоритет: ' + App.schema.priorityLabel(parsed.priority).toLowerCase());
+    if (parsed.tags.length) {
+      parts.push(
+        'теги: ' +
+          parsed.tags
+            .map(function (tag) {
+              return '#' + tag;
+            })
+            .join(', ')
+      );
+    }
+    return parts;
+  }
+
+  function updateComposerHint() {
+    if (!refs.composerHint) return;
+    var raw = refs.taskInput.value;
+    if (!raw.trim()) {
+      refs.composerHint.textContent = DEFAULT_HINT;
+      return;
+    }
+    var parsed = App.parser.parseQuickInput(raw, new Date());
+    var parts = describeParsed(parsed);
+    refs.composerHint.textContent = parts.length ? 'Будет добавлено: ' + parts.join(' · ') : DEFAULT_HINT;
+  }
 
   function ensureTaskVisible() {
     if (App.view.query) {
@@ -137,23 +179,35 @@
 
   function handleComposerSubmit(event) {
     event.preventDefault();
-    var title = App.util.cleanText(refs.taskInput.value, App.schema.LIMITS.title);
+    var parsed = App.parser.parseQuickInput(refs.taskInput.value, new Date());
 
-    if (!title) {
+    if (!parsed.title) {
       refs.composer.classList.add('is-invalid');
       refs.taskInput.focus();
-      App.ui.announce('Пустую задачу добавить нельзя. Введите текст.');
+      App.ui.announce(
+        refs.taskInput.value.trim()
+          ? 'Добавьте название задачи. Только срок, приоритет и теги сохранить нельзя.'
+          : 'Пустую задачу добавить нельзя. Введите текст.'
+      );
       return;
     }
 
     ensureTaskVisible();
-    var task = store.actions.addTask({ title: title });
+    var task = store.actions.addTask({
+      title: parsed.title,
+      due: parsed.due,
+      priority: parsed.priority,
+      tags: parsed.tags,
+      listId: store.get().settings.listId
+    });
     if (!task) return;
 
+    var extras = describeParsed(parsed);
     refs.composer.classList.remove('is-invalid');
     refs.taskInput.value = '';
+    updateComposerHint();
     refs.taskInput.focus();
-    App.ui.announce('Добавлена задача: ' + task.title);
+    App.ui.announce('Добавлена задача: ' + task.title + (extras.length ? '. ' + extras.join(', ') : ''));
   }
 
   // ——— Инлайн-редактирование ———
@@ -218,11 +272,40 @@
     App.ui.announce('Подзадача добавлена: ' + title);
   }
 
+  function moveTask(taskId, delta, focusAction) {
+    if (store.get().settings.sort !== 'manual') {
+      App.ui.announce('Ручной порядок выключен. Выберите сортировку «Вручную».');
+      return;
+    }
+    var moved = store.actions.moveTaskBy(taskId, delta);
+    var action = focusAction || (delta < 0 ? 'move-up' : 'move-down');
+    if (!moved) {
+      App.ui.announce(delta < 0 ? 'Задача уже первая.' : 'Задача уже последняя.');
+    } else {
+      App.ui.announce(delta < 0 ? 'Задача поднята выше.' : 'Задача опущена ниже.');
+    }
+    focusTaskAction(taskId, action);
+  }
+
   function deleteTaskWithFocus(taskId) {
     var position = findVisibleTaskIndex(taskId);
+    var task = getTask(taskId);
+    var index = task ? store.get().tasks.indexOf(task) : -1;
     var removed = store.actions.deleteTask(taskId);
     if (!removed) return;
+
     App.ui.announce('Удалена задача: ' + removed.title);
+    App.ui.toast('Задача удалена', {
+      actionLabel: 'Отменить',
+      duration: 6000,
+      onAction: function () {
+        var restored = store.actions.restoreTask(removed, index);
+        if (!restored) return;
+        App.ui.announce('Удаление отменено: ' + restored.title);
+        focusTaskAction(restored.id, 'delete');
+      }
+    });
+
     var next = position.list[position.index + 1] || position.list[position.index - 1];
     if (!next || !focusTaskAction(next.id, 'delete')) {
       refs.taskInput.focus();
@@ -253,6 +336,11 @@
 
     if (action === 'edit') {
       App.dialogs.openTask(taskId);
+      return;
+    }
+
+    if (action === 'move-up' || action === 'move-down') {
+      moveTask(taskId, action === 'move-up' ? -1 : 1);
       return;
     }
 
@@ -288,11 +376,27 @@
   function handleTaskListKeydown(event) {
     var target = event.target;
 
+    if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      var altItem = target.closest('.task');
+      if (!altItem || App.util.isEditableTarget(target)) return;
+      event.preventDefault();
+      moveTask(altItem.dataset.id, event.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+
+    var grip = target.closest('[data-action="grip"]');
+    if (grip && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      var gripItem = grip.closest('.task');
+      event.preventDefault();
+      if (gripItem) moveTask(gripItem.dataset.id, event.key === 'ArrowUp' ? -1 : 1, 'grip');
+      return;
+    }
+
     if (target.matches('[data-sub-input]')) {
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      var item = target.closest('.task');
-      if (item) addSubtaskFromCard(item.dataset.id, item);
+      var subItem = target.closest('.task');
+      if (subItem) addSubtaskFromCard(subItem.dataset.id, subItem);
       return;
     }
 
@@ -340,6 +444,88 @@
     if (refs.searchInput) refs.searchInput.focus();
   }
 
+  // ——— Отмена и горячие клавиши ———
+
+  function handleUndo() {
+    if (!store.canUndo()) {
+      App.ui.announce('Нечего отменять.');
+      return;
+    }
+    var entry = store.undo();
+    if (entry) App.ui.announce('Отменено: ' + entry.label.toLowerCase() + '.');
+  }
+
+  function isDialogOpen() {
+    return !!document.querySelector('dialog[open]');
+  }
+
+  function focusComposer() {
+    if (isNavOpen()) setNavOpen(false, false);
+    refs.taskInput.focus();
+    refs.taskInput.select();
+  }
+
+  function focusSearch() {
+    if (isNavOpen()) setNavOpen(false, false);
+    refs.searchInput.focus();
+    refs.searchInput.select();
+  }
+
+  function handleEscape() {
+    if (isDialogOpen()) return;
+    if (isNavOpen()) {
+      setNavOpen(false, true);
+      return;
+    }
+    if (App.view.editingId) return;
+    if (App.view.query || store.get().settings.filter !== 'all') {
+      resetFilters();
+      App.ui.announce('Фильтры сброшены.');
+      return;
+    }
+    if (App.util.isEditableTarget(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  }
+
+  function handleGlobalKeydown(event) {
+    if (isDialogOpen()) return;
+
+    var editable = App.util.isEditableTarget(event.target);
+    var mod = event.ctrlKey || event.metaKey;
+
+    if (mod && !event.shiftKey && (event.code === 'KeyZ' || String(event.key).toLowerCase() === 'z')) {
+      if (editable) return;
+      event.preventDefault();
+      handleUndo();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      handleEscape();
+      return;
+    }
+
+    if (editable || mod || event.altKey) return;
+
+    if (event.code === 'KeyN') {
+      event.preventDefault();
+      focusComposer();
+      return;
+    }
+
+    if (event.key === '?') {
+      event.preventDefault();
+      App.dialogs.openHelp();
+      return;
+    }
+
+    if (event.key === '/' || (event.code === 'Slash' && !event.shiftKey)) {
+      event.preventDefault();
+      focusSearch();
+    }
+  }
+
   // ——— Мобильное меню ———
 
   function isNavOpen() {
@@ -364,6 +550,7 @@
     refs.composer.addEventListener('submit', handleComposerSubmit);
     refs.taskInput.addEventListener('input', function () {
       refs.composer.classList.remove('is-invalid');
+      updateComposerHint();
     });
 
     refs.taskList.addEventListener('click', handleTaskListClick);
@@ -419,6 +606,11 @@
       App.dialogs.openList(null);
     });
 
+    refs.helpBtn.addEventListener('click', function () {
+      if (isNavOpen()) setNavOpen(false, false);
+      App.dialogs.openHelp();
+    });
+
     refs.menuBtn.addEventListener('click', function () {
       setNavOpen(true);
     });
@@ -429,9 +621,7 @@
       setNavOpen(false, true);
     });
 
-    document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && isNavOpen()) setNavOpen(false, true);
-    });
+    document.addEventListener('keydown', handleGlobalKeydown);
   }
 
   if (document.readyState === 'loading') {

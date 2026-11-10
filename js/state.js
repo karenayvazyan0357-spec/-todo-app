@@ -250,6 +250,20 @@
       return task;
     }
 
+    /** Возврат удалённой задачи из тоста «Отменить» — без зависимости от стека отмены. */
+    function restoreTask(task, index) {
+      if (!task || !schema.isValidId(task.id) || findTask(task.id)) return null;
+      var target = typeof index === 'number' ? Math.min(Math.max(index, 0), state.tasks.length) : state.tasks.length;
+      state.tasks.splice(target, 0, task);
+
+      pushUndo('Задача восстановлена', function () {
+        var currentIndex = findTaskIndex(task.id);
+        if (currentIndex !== -1) state.tasks.splice(currentIndex, 1);
+      });
+      emit('task:restore');
+      return task;
+    }
+
     // ——— Действия со списками ———
 
     function addList(name, color) {
@@ -390,6 +404,95 @@
       return updateTask(taskId, { subtasks: subtasks });
     }
 
+    // ——— Ручной порядок ———
+
+    function compareOrder(a, b) {
+      return a.order - b.order || a.createdAt.localeCompare(b.createdAt);
+    }
+
+    function orderedTasksOfList(listId) {
+      return state.tasks
+        .filter(function (task) {
+          return task.listId === listId;
+        })
+        .sort(compareOrder);
+    }
+
+    function orderSnapshot() {
+      return state.tasks.map(function (task) {
+        return { id: task.id, order: task.order };
+      });
+    }
+
+    function restoreOrders(snapshot) {
+      snapshot.forEach(function (entry) {
+        var task = findTask(entry.id);
+        if (task) task.order = entry.order;
+      });
+    }
+
+    function renumber(tasks) {
+      tasks.forEach(function (task, index) {
+        task.order = index + 1;
+      });
+    }
+
+    function persistOrder(before, label) {
+      pushUndo(label, function () {
+        restoreOrders(before);
+      });
+      emit('task:reorder');
+    }
+
+    /** Сдвиг на одну позицию — доступная альтернатива перетаскиванию. */
+    function moveTaskBy(id, delta) {
+      var task = findTask(id);
+      if (!task || !delta) return null;
+      var ordered = orderedTasksOfList(task.listId);
+      var index = ordered.indexOf(task);
+      var next = index + delta;
+      if (index === -1 || next < 0 || next >= ordered.length) return null;
+
+      var before = orderSnapshot();
+      ordered.splice(index, 1);
+      ordered.splice(next, 0, task);
+      renumber(ordered);
+      persistOrder(before, delta < 0 ? 'Задача поднята' : 'Задача опущена');
+      return task;
+    }
+
+    /** Перестановка относительно другой задачи — для drag and drop. */
+    function moveTaskRelative(id, targetId, placeAfter) {
+      var task = findTask(id);
+      var target = findTask(targetId);
+      if (!task || !target || task.id === target.id || task.listId !== target.listId) return null;
+
+      var ordered = orderedTasksOfList(task.listId);
+      var beforeIds = ordered
+        .map(function (item) {
+          return item.id;
+        })
+        .join('\u0001');
+      var without = ordered.filter(function (item) {
+        return item.id !== task.id;
+      });
+      var targetIndex = without.indexOf(target);
+      if (targetIndex === -1) return null;
+
+      without.splice(targetIndex + (placeAfter ? 1 : 0), 0, task);
+      var afterIds = without
+        .map(function (item) {
+          return item.id;
+        })
+        .join('\u0001');
+      if (beforeIds === afterIds) return task;
+
+      var before = orderSnapshot();
+      renumber(without);
+      persistOrder(before, 'Порядок изменён');
+      return task;
+    }
+
     // ——— Настройки (тема, выбранный список, фильтры) ———
 
     function setSettings(patch) {
@@ -440,6 +543,7 @@
         toggleTask: toggleTask,
         updateTask: updateTask,
         deleteTask: deleteTask,
+        restoreTask: restoreTask,
         addList: addList,
         renameList: renameList,
         setListColor: setListColor,
@@ -447,6 +551,8 @@
         addSubtask: addSubtask,
         toggleSubtask: toggleSubtask,
         deleteSubtask: deleteSubtask,
+        moveTaskBy: moveTaskBy,
+        moveTaskRelative: moveTaskRelative,
         setSettings: setSettings
       }
     };
