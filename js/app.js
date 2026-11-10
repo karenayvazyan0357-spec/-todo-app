@@ -47,6 +47,7 @@
       searchClear: byId('searchClear'),
       filterChips: byId('filterChips'),
       sortSelect: byId('sortSelect'),
+      toolbar: byId('toolbar'),
       composer: byId('composer'),
       composerHint: byId('composerHint'),
       taskInput: byId('taskInput'),

@@ -726,6 +726,30 @@
           assertEqual(result.state.tasks[0].title, 'Купить молоко');
         });
 
+        test('файл версии 1 импортируется после миграции', function () {
+          var v1 = {
+            version: 1,
+            lists: [{ id: 'inbox', title: 'Входящие' }],
+            tasks: [
+              {
+                id: 'a',
+                text: 'Позвонить',
+                completed: true,
+                priority: 'high',
+                listId: 'inbox',
+                tags: ['дом']
+              }
+            ],
+            settings: {}
+          };
+          var parsed = App.transfer.parseText(JSON.stringify(v1));
+          assert(parsed.ok, parsed.errors ? parsed.errors.join(' ') : 'импорт должен пройти');
+          assertEqual(parsed.state.tasks[0].title, 'Позвонить');
+          assertEqual(parsed.state.tasks[0].priority, 3);
+          assertEqual(parsed.state.tasks[0].done, true);
+          assertEqual(parsed.state.lists[0].id, 'inbox');
+        });
+
         test('импорт с неверным приоритетом отклоняется с понятной ошибкой', function () {
           var store = makeStore();
           store.actions.addTask({ title: 'Задача' });

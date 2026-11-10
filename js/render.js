@@ -514,6 +514,12 @@
     var animate = visible.length <= 200 && !motionQuery.matches;
     list.classList.toggle('is-manual', state.settings.sort === 'manual');
 
+    // На пустом списке не показываем фильтры: первый экран должен быть проще.
+    if (refs.toolbar) {
+      var listHasTasks = App.selectors.listTasks(state, App.selectors.currentListId(state)).length > 0;
+      refs.toolbar.hidden = !(listHasTasks || query || state.settings.filter !== 'all');
+    }
+
     visible.forEach(function (task, index) {
       var node = taskNodes.get(task.id);
       if (!node) {

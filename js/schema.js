@@ -101,19 +101,20 @@
 
   /** v1 → v2: раньше не было подзадач и порядка, приоритет был строкой. */
   function migrateFromV1(raw) {
+    var stamp = new Date().toISOString();
+    var priorityMap = { none: 0, low: 1, medium: 2, high: 3, 1: 1, 2: 2, 3: 3 };
+
     var lists = Array.isArray(raw.lists)
       ? raw.lists.map(function (list) {
           if (!isPlainObject(list)) return list;
           return {
             id: list.id,
             name: typeof list.name === 'string' ? list.name : list.title,
-            color: list.color,
-            createdAt: list.createdAt
+            color: isValidColor(list.color) ? list.color : 'neutral',
+            createdAt: isTimestamp(list.createdAt) ? list.createdAt : stamp
           };
         })
       : raw.lists;
-
-    var priorityMap = { none: 0, low: 1, medium: 2, high: 3, 1: 1, 2: 2, 3: 3 };
 
     var tasks = Array.isArray(raw.tasks)
       ? raw.tasks.map(function (task, index) {
@@ -124,14 +125,14 @@
             id: task.id,
             title: typeof task.title === 'string' ? task.title : task.text,
             done: task.done === true || task.completed === true,
-            createdAt: task.createdAt,
-            completedAt: task.completedAt || null,
-            due: task.due || null,
-            priority: priority == null ? 0 : priority,
-            listId: task.listId || INBOX_ID,
-            tags: task.tags,
-            subtasks: [],
-            order: typeof task.order === 'number' ? task.order : index
+            createdAt: isTimestamp(task.createdAt) ? task.createdAt : stamp,
+            completedAt: isTimestamp(task.completedAt) ? task.completedAt : null,
+            due: App.util.isISODate(task.due) ? task.due : null,
+            priority: clampPriority(priority),
+            listId: typeof task.listId === 'string' ? task.listId : INBOX_ID,
+            tags: normalizeTags(task.tags),
+            subtasks: normalizeSubtasks(task.subtasks),
+            order: typeof task.order === 'number' && isFinite(task.order) ? task.order : index
           };
         })
       : raw.tasks;
@@ -154,8 +155,9 @@
   /** Возвращает мигрированный объект или null, если версия не поддерживается. */
   function migrate(raw) {
     if (!isPlainObject(raw)) return null;
-    var version = typeof raw.version === 'number' ? raw.version : 1;
-    if (!isFinite(version) || version < 1 || version > VERSION) return null;
+    var version = typeof raw.version === 'number' ? raw.version : Number(raw.version);
+    if (!isFinite(version)) version = 1;
+    if (version < 1 || version > VERSION) return null;
     if (version === VERSION) return raw;
     var migrated = migrateFromV1(raw);
     migrated.version = VERSION;
