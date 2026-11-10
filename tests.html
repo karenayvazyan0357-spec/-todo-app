@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Тесты — Задачи</title>
+    <link rel="stylesheet" href="css/tokens.css" />
+    <style>
+      /* Отдельная простая страница: тесты должны читаться, а не впечатлять. */
+      body {
+        margin: 0;
+        padding: 32px 20px 80px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        line-height: 1.5;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--font-serif);
+        font-size: 2rem;
+        letter-spacing: -0.02em;
+      }
+      .head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 12px 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .head a {
+        margin-left: auto;
+        color: var(--accent);
+        font-size: 0.875rem;
+      }
+      .summary {
+        color: var(--muted);
+        font-size: 0.9375rem;
+        width: 100%;
+      }
+      .summary.is-pass {
+        color: var(--ok);
+      }
+      .summary.is-fail {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .suite {
+        margin-top: 28px;
+      }
+      .suite h2 {
+        margin: 0 0 10px;
+        font-family: var(--font-serif);
+        font-size: 1.15rem;
+      }
+      .test {
+        display: flex;
+        gap: 10px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line-soft);
+        font-size: 0.875rem;
+      }
+      .test:last-child {
+        border-bottom: 0;
+      }
+      .test__mark {
+        flex: none;
+        width: 18px;
+        font-weight: 700;
+      }
+      .test--pass .test__mark {
+        color: var(--ok);
+      }
+      .test--fail {
+        background: var(--danger-soft);
+        border-radius: 6px;
+      }
+      .test--fail .test__mark {
+        color: var(--danger);
+      }
+      .test__name {
+        flex: 1;
+      }
+      .test__error {
+        margin: 4px 0 0;
+        color: var(--danger);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+      }
+      .run {
+        padding: 8px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.875rem;
+        cursor: pointer;
+      }
+      .run:hover {
+        background: var(--surface-2);
+      }
+      .legend {
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 0.8125rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="head">
+        <h1>Тесты</h1>
+        <button class="run" id="run" type="button">Запустить заново</button>
+        <a href="index.html">← К приложению</a>
+        <p class="summary" id="summary">Запускаем…</p>
+      </header>
+      <main id="results" aria-live="polite"></main>
+      <p class="legend">
+        Тест-раннер самописный, без библиотек. Проверяются данные и логика: добавление, отметка, удаление,
+        фильтры, сортировка, миграция и валидация импорта. Интерфейс проверяется вручную по чек-листу из README.
+      </p>
+    </div>
+
+    <script src="js/util.js"></script>
+    <script src="js/schema.js"></script>
+    <script src="js/selectors.js"></script>
+    <script src="js/state.js"></script>
+    <script>
+      (function () {
+        'use strict';
+
+        var groups = [];
+        var currentGroup = null;
+        var summaryEl = document.getElementById('summary');
+        var resultsEl = document.getElementById('results');
+        var App = window.TodoApp;
+
+        // ——— Мини-раннер ———
+
+        function suite(name) {
+          currentGroup = { name: name, tests: [] };
+          groups.push(currentGroup);
+        }
+
+        function test(name, fn) {
+          if (!currentGroup) suite('Без группы');
+          currentGroup.tests.push({ name: name, fn: fn });
+        }
+
+        function format(value) {
+          if (typeof value === 'string') return JSON.stringify(value);
+          if (value === undefined) return 'undefined';
+          try {
+            return JSON.stringify(value);
+          } catch (error) {
+            return String(value);
+          }
+        }
+
+        function assert(condition, message) {
+          if (!condition) throw new Error(message || 'Условие не выполнено');
+        }
+
+        function assertEqual(actual, expected, message) {
+          if (actual !== expected) {
+            throw new Error(
+              (message ? message + ': ' : '') + 'ожидалось ' + format(expected) + ', получено ' + format(actual)
+            );
+          }
+        }
+
+        function assertDeepEqual(actual, expected, message) {
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error(
+              (message ? message + ': ' : '') + 'ожидалось ' + format(expected) + ', получено ' + format(actual)
+            );
+          }
+        }
+
+        function assertIncludes(text, needle, message) {
+          if (String(text).indexOf(needle) === -1) {
+            throw new Error((message || 'Подстрока не найдена') + ': искали ' + format(needle) + ' в ' + format(text));
+          }
+        }
+
+        // ——— Фикстуры ———
+
+        function makeStore() {
+          var sequence = 0;
+          return App.createStore({
+            now: function () {
+              return new Date(2026, 1, 10, 12, 0, 0, 0);
+            },
+            createId: function (prefix) {
+              sequence += 1;
+              return (prefix || 'id_') + sequence;
+            }
+          });
+        }
+
+        function makeTask(overrides) {
+          var task = {
+            id: 't' + Math.random().toString(36).slice(2, 8),
+            title: 'Задача',
+            done: false,
+            createdAt: '2026-02-10T09:00:00.000Z',
+            completedAt: null,
+            due: null,
+            priority: 0,
+            listId: 'inbox',
+            tags: [],
+            subtasks: [],
+            order: 0
+          };
+          Object.keys(overrides || {}).forEach(function (key) {
+            task[key] = overrides[key];
+          });
+          return task;
+        }
+
+        function makeState(tasks, settings) {
+          var baseSettings = { theme: 'system', listId: 'inbox', filter: 'all', sort: 'manual' };
+          Object.keys(settings || {}).forEach(function (key) {
+            baseSettings[key] = settings[key];
+          });
+          return {
+            version: 2,
+            lists: [{ id: 'inbox', name: 'Входящие', color: 'neutral', createdAt: '2026-01-01T00:00:00.000Z' }],
+            tasks: tasks,
+            settings: baseSettings
+          };
+        }
+
+        var NOW = new Date(2026, 1, 10, 12, 0, 0, 0);
+        var TODAY = App.util.todayISO(NOW);
+        var TOMORROW = App.util.shiftISODate(TODAY, 1);
+        var YESTERDAY = App.util.shiftISODate(TODAY, -1);
+
+        // ——— Тесты ———
+
+        suite('Добавление задач');
+
+        test('пустая строка не создаёт задачу', function () {
+          var store = makeStore();
+          assertEqual(store.actions.addTask({ title: '   ' }), null);
+          assertEqual(store.actions.addTask({ title: '' }), null);
+          assertEqual(store.actions.addTask({}), null);
+          assertEqual(store.get().tasks.length, 0);
+        });
+
+        test('пробелы по краям обрезаются', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: '  Купить молоко  ' });
+          assertEqual(task.title, 'Купить молоко');
+        });
+
+        test('внутренние повторы пробелов схлопываются', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Купить   молоко' });
+          assertEqual(task.title, 'Купить молоко');
+        });
+
+        test('длина ограничена 200 символами', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: new Array(260).join('я') });
+          assertEqual(task.title.length, 200);
+        });
+
+        test('новая задача встаёт сверху', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Первая' });
+          store.actions.addTask({ title: 'Вторая' });
+          var visible = App.selectors.visibleTasks(store.get(), '', NOW);
+          assertEqual(visible[0].title, 'Вторая');
+        });
+
+        test('поля новой задачи заполнены по умолчанию', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Позвонить' });
+          assertIncludes(task.id, 't_');
+          assertEqual(task.done, false);
+          assertEqual(task.completedAt, null);
+          assertEqual(task.priority, 0);
+          assertEqual(task.listId, 'inbox');
+          assertDeepEqual(task.tags, []);
+          assertDeepEqual(task.subtasks, []);
+        });
+
+        test('быстрый ввод передаёт срок, приоритет и теги', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Купить молоко', due: TOMORROW, priority: 3, tags: ['дом', '#дом'] });
+          assertEqual(task.due, TOMORROW);
+          assertEqual(task.priority, 3);
+          assertDeepEqual(task.tags, ['дом']);
+        });
+
+        suite('Отметка выполнения');
+
+        test('отметка ставится и снимается', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Полить цветы' });
+
+          store.actions.toggleTask(task.id);
+          assertEqual(store.get().tasks[0].done, true);
+          assert(!!store.get().tasks[0].completedAt, 'completedAt должен заполниться');
+
+          store.actions.toggleTask(task.id);
+          assertEqual(store.get().tasks[0].done, false);
+          assertEqual(store.get().tasks[0].completedAt, null);
+        });
+
+        test('отметка неизвестной задачи ничего не ломает', function () {
+          var store = makeStore();
+          assertEqual(store.actions.toggleTask('нет-такой'), null);
+        });
+
+        suite('Удаление и отмена');
+
+        test('удаление убирает задачу, отмена возвращает', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Выбросить коробки' });
+          var removed = store.actions.deleteTask(task.id);
+          assertEqual(removed.id, task.id);
+          assertEqual(store.get().tasks.length, 0);
+
+          store.undo();
+          assertEqual(store.get().tasks.length, 1);
+          assertEqual(store.get().tasks[0].title, 'Выбросить коробки');
+        });
+
+        test('отмена добавления удаляет только что созданную задачу', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Первая' });
+          store.actions.addTask({ title: 'Вторая' });
+          store.undo();
+          assertEqual(store.get().tasks.length, 1);
+          assertEqual(store.get().tasks[0].title, 'Первая');
+        });
+
+        test('удаление неизвестной задачи безопасно', function () {
+          var store = makeStore();
+          assertEqual(store.actions.deleteTask('нет-такой'), null);
+        });
+
+        suite('Миграция и валидация');
+
+        test('данные версии 1 превращаются в версию 2', function () {
+          var v1 = {
+            version: 1,
+            lists: [
+              { id: 'inbox', title: 'Входящие' },
+              { id: 'l1', title: 'Работа', color: '#52708c' }
+            ],
+            tasks: [
+              {
+                id: 'a',
+                text: 'Позвонить',
+                completed: true,
+                createdAt: '2026-01-01T10:00:00.000Z',
+                listId: 'l1',
+                priority: 'high',
+                due: TODAY,
+                tags: ['работа']
+              }
+            ],
+            settings: { theme: 'dark', listId: 'l1' }
+          };
+
+          var migrated = App.schema.migrate(v1);
+          assertEqual(migrated.version, 2);
+          var result = App.schema.sanitizeSnapshot(migrated, NOW);
+          assert(result.ok, 'после миграции данные должны читаться');
+          assertEqual(result.state.tasks[0].title, 'Позвонить');
+          assertEqual(result.state.tasks[0].priority, 3);
+          assertEqual(result.state.tasks[0].done, true);
+          assertDeepEqual(result.state.tasks[0].subtasks, []);
+          assertDeepEqual(result.state.tasks[0].tags, ['работа']);
+          assertEqual(result.state.settings.theme, 'dark');
+        });
+
+        test('неизвестная версия схемы отклоняется', function () {
+          assertEqual(App.schema.migrate({ version: 99 }), null);
+          assertEqual(App.schema.migrate('мусор'), null);
+        });
+
+        test('битые задачи отбрасываются, остальные чинятся', function () {
+          var raw = {
+            version: 2,
+            lists: [],
+            tasks: [
+              { id: 'bad', title: '   ' },
+              { id: 'ok', title: 'Живая задача', done: false, createdAt: '2026-02-01T10:00:00.000Z' }
+            ],
+            settings: {}
+          };
+          var result = App.schema.sanitizeSnapshot(raw, NOW);
+          assert(result.ok, 'нормализация должна пройти');
+          assertEqual(result.state.tasks.length, 1);
+          assertEqual(result.state.tasks[0].title, 'Живая задача');
+          assertEqual(result.state.tasks[0].listId, 'inbox');
+          assertEqual(result.state.tasks[0].priority, 0);
+          assert(result.dropped >= 1, 'счётчик отброшенных должен вырасти');
+          assertEqual(result.state.lists[0].id, 'inbox');
+        });
+
+        test('список «Входящие» нельзя потерять', function () {
+          var raw = { version: 2, lists: [], tasks: [], settings: {} };
+          var result = App.schema.sanitizeSnapshot(raw, NOW);
+          assertEqual(result.state.lists.length, 1);
+          assertEqual(result.state.lists[0].id, 'inbox');
+          assertEqual(result.state.settings.listId, 'inbox');
+        });
+
+        test('корректный экспорт проходит строгую проверку', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Купить молоко', due: TOMORROW, priority: 2, tags: ['дом'] });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          var result = App.schema.validateSnapshot(snapshot);
+          assert(result.ok, 'экспорт собственного формата должен быть валиден');
+          assertEqual(result.state.tasks.length, 1);
+          assertEqual(result.state.tasks[0].title, 'Купить молоко');
+        });
+
+        test('импорт с неверным приоритетом отклоняется с понятной ошибкой', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Задача' });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].priority = 9;
+          var result = App.schema.validateSnapshot(snapshot);
+          assertEqual(result.ok, false);
+          assertIncludes(result.errors.join(' '), 'приоритет');
+        });
+
+        test('импорт с неизвестным списком отклоняется', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Задача' });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].listId = 'чужой-список';
+          var result = App.schema.validateSnapshot(snapshot);
+          assertEqual(result.ok, false);
+          assertIncludes(result.errors.join(' '), 'не найден');
+        });
+
+        test('импорт не портит исходный объект', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Задача' });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].tags = new Array(20).join('x,').split(',');
+          var before = JSON.stringify(snapshot);
+          App.schema.validateSnapshot(snapshot);
+          assertEqual(JSON.stringify(snapshot), before);
+        });
+
+        suite('Фильтры');
+
+        test('активные, выполненные и просроченные отбираются правильно', function () {
+          var tasks = [
+            makeTask({ id: 'a', title: 'Сегодня', due: TODAY, order: 1 }),
+            makeTask({ id: 'b', title: 'Просрочена', due: YESTERDAY, order: 2 }),
+            makeTask({ id: 'c', title: 'Готово', done: true, completedAt: NOW.toISOString(), order: 3 }),
+            makeTask({ id: 'd', title: 'Без срока', order: 4 })
+          ];
+
+          var active = App.selectors.visibleTasks(makeState(tasks, { filter: 'active' }), '', NOW);
+          assertEqual(active.length, 3);
+
+          var done = App.selectors.visibleTasks(makeState(tasks, { filter: 'done' }), '', NOW);
+          assertEqual(done.length, 1);
+          assertEqual(done[0].id, 'c');
+
+          var overdue = App.selectors.visibleTasks(makeState(tasks, { filter: 'overdue' }), '', NOW);
+          assertEqual(overdue.length, 1);
+          assertEqual(overdue[0].id, 'b');
+
+          var today = App.selectors.visibleTasks(makeState(tasks, { filter: 'today' }), '', NOW);
+          assertEqual(today.length, 1);
+          assertEqual(today[0].id, 'a');
+        });
+
+        test('поиск ищет по названию и тегам', function () {
+          var tasks = [
+            makeTask({ id: 'a', title: 'Купить молоко', tags: ['дом'], order: 1 }),
+            makeTask({ id: 'b', title: 'Позвонить маме', tags: ['семья'], order: 2 })
+          ];
+          var state = makeState(tasks);
+          assertEqual(App.selectors.visibleTasks(state, 'молоко', NOW).length, 1);
+          assertEqual(App.selectors.visibleTasks(state, 'семья', NOW).length, 1);
+          assertEqual(App.selectors.visibleTasks(state, 'нет-такого', NOW).length, 0);
+        });
+
+        test('фильтр работает только по текущему списку', function () {
+          var tasks = [
+            makeTask({ id: 'a', listId: 'inbox', order: 1 }),
+            makeTask({ id: 'b', listId: 'l2', order: 2 })
+          ];
+          var state = makeState(tasks);
+          state.lists.push({ id: 'l2', name: 'Работа', color: '#52708c', createdAt: '2026-01-01T00:00:00.000Z' });
+          assertEqual(App.selectors.visibleTasks(state, '', NOW).length, 1);
+          state.settings.listId = 'l2';
+          assertEqual(App.selectors.visibleTasks(state, '', NOW)[0].id, 'b');
+        });
+
+        suite('Сортировка');
+
+        test('ручная сортировка идёт по order', function () {
+          var tasks = [
+            makeTask({ id: 'c', order: 3 }),
+            makeTask({ id: 'a', order: 1 }),
+            makeTask({ id: 'b', order: 2 })
+          ];
+          var sorted = App.selectors.visibleTasks(makeState(tasks, { sort: 'manual' }), '', NOW);
+          assertDeepEqual(
+            sorted.map(function (task) {
+              return task.id;
+            }),
+            ['a', 'b', 'c']
+          );
+        });
+
+        test('по сроку задачи без срока уходят в конец', function () {
+          var tasks = [
+            makeTask({ id: 'none', due: null, order: 1 }),
+            makeTask({ id: 'late', due: YESTERDAY, order: 2 }),
+            makeTask({ id: 'soon', due: TOMORROW, order: 3 })
+          ];
+          var sorted = App.selectors.visibleTasks(makeState(tasks, { sort: 'due' }), '', NOW);
+          assertDeepEqual(
+            sorted.map(function (task) {
+              return task.id;
+            }),
+            ['late', 'soon', 'none']
+          );
+        });
+
+        test('по приоритету высокий идёт первым', function () {
+          var tasks = [
+            makeTask({ id: 'low', priority: 1, order: 1 }),
+            makeTask({ id: 'high', priority: 3, order: 2 }),
+            makeTask({ id: 'medium', priority: 2, order: 3 })
+          ];
+          var sorted = App.selectors.visibleTasks(makeState(tasks, { sort: 'priority' }), '', NOW);
+          assertDeepEqual(
+            sorted.map(function (task) {
+              return task.id;
+            }),
+            ['high', 'medium', 'low']
+          );
+        });
+
+        test('по дате создания новые сверху', function () {
+          var tasks = [
+            makeTask({ id: 'old', createdAt: '2026-01-01T10:00:00.000Z', order: 1 }),
+            makeTask({ id: 'new', createdAt: '2026-02-09T10:00:00.000Z', order: 2 })
+          ];
+          var sorted = App.selectors.visibleTasks(makeState(tasks, { sort: 'created' }), '', NOW);
+          assertDeepEqual(
+            sorted.map(function (task) {
+              return task.id;
+            }),
+            ['new', 'old']
+          );
+        });
+
+        // ——— Запуск и отрисовка ———
+
+        function render(passed, failed, duration) {
+          resultsEl.textContent = '';
+          groups.forEach(function (group) {
+            var section = document.createElement('section');
+            section.className = 'suite';
+            var heading = document.createElement('h2');
+            heading.textContent = group.name;
+            section.appendChild(heading);
+
+            group.tests.forEach(function (item) {
+              var row = document.createElement('div');
+              row.className = 'test ' + (item.error ? 'test--fail' : 'test--pass');
+
+              var mark = document.createElement('span');
+              mark.className = 'test__mark';
+              mark.textContent = item.error ? '✕' : '✓';
+              mark.setAttribute('aria-hidden', 'true');
+
+              var name = document.createElement('span');
+              name.className = 'test__name';
+              name.textContent = item.name;
+
+              row.appendChild(mark);
+              row.appendChild(name);
+
+              if (item.error) {
+                var error = document.createElement('p');
+                error.className = 'test__error';
+                error.textContent = item.error;
+                row.appendChild(error);
+              }
+
+              section.appendChild(row);
+            });
+
+            resultsEl.appendChild(section);
+          });
+
+          var total = passed + failed;
+          var allPassed = failed === 0;
+          summaryEl.className = 'summary ' + (allPassed ? 'is-pass' : 'is-fail');
+          summaryEl.textContent =
+            (allPassed ? '✓ ' : '✕ ') + passed + ' из ' + total + ' тестов прошли · ' + duration + ' мс';
+          document.title = (allPassed ? '✓ ' : '✕ ') + passed + '/' + total + ' — Тесты';
+        }
+
+        function run() {
+          var started = performance.now();
+          var passed = 0;
+          var failed = 0;
+
+          groups.forEach(function (group) {
+            group.tests.forEach(function (item) {
+              item.error = '';
+              try {
+                item.fn();
+                passed += 1;
+              } catch (error) {
+                failed += 1;
+                item.error = error && error.message ? error.message : String(error);
+              }
+            });
+          });
+
+          render(passed, failed, Math.round(performance.now() - started));
+        }
+
+        document.getElementById('run').addEventListener('click', run);
+        run();
+      })();
+    </script>
+  </body>
+</html>

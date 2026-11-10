@@ -1,0 +1,119 @@
+/* Дизайн-токены: единственный источник значений для цвета, ритма и движения.
+   Тема переключается атрибутом data-theme на <html> (его ставит inline-скрипт до отрисовки). */
+
+:root {
+  color-scheme: light;
+
+  /* Типографика: только системные шрифты, поэтому загрузка не влияет на старт. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --fs-xs: 0.6875rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.9375rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: clamp(1.5rem, 1.15rem + 1.1vw, 1.875rem);
+  --fs-2xl: clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+
+  --lh-tight: 1.2;
+  --lh-base: 1.5;
+  --tracking-caps: 0.09em;
+
+  /* Ритм: шаг 4px, чтобы всё выравнивалось по вертикальной сетке. */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-7: 2rem;
+  --sp-8: 2.5rem;
+  --sp-9: 3rem;
+  --sp-10: 4rem;
+  --sp-12: 6rem;
+
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-full: 999px;
+
+  --tap: 44px;
+  --sidebar-w: 288px;
+  --measure: 800px;
+
+  /* Светлая палитра: тёплая бумага и один терракотовый акцент. */
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --surface-2: #f3efe9;
+  --surface-hover: #f5f1eb;
+  --surface-pressed: #ede7df;
+  --ink: #191512;
+  --ink-2: #463d35;
+  --muted: #6e6157;
+  --line: #e5ded4;
+  --line-soft: #efe9e1;
+  --line-strong: #cfc4b6;
+  --accent: #a83c22;
+  --accent-hover: #8d3018;
+  --accent-soft: #f7e8e2;
+  --accent-ink: #ffffff;
+  --danger: #9e2418;
+  --danger-soft: #f8e5e2;
+  --warn: #7a5200;
+  --warn-soft: #fbf0d9;
+  --ok: #1f5d52;
+  --ok-soft: #e3efe9;
+  --prio-high: #a3241b;
+  --prio-medium: #8a5a00;
+  --prio-low: #24574d;
+  --scrim: rgb(25 21 18 / 0.38);
+  --focus-ring: rgb(168 60 34 / 0.35);
+  --shadow-1: 0 1px 2px rgb(25 21 18 / 0.05), 0 1px 3px rgb(25 21 18 / 0.04);
+  --shadow-2: 0 16px 40px -20px rgb(25 21 18 / 0.4), 0 2px 8px rgb(25 21 18 / 0.06);
+
+  --t-fast: 120ms;
+  --t-base: 180ms;
+  --t-slow: 280ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --z-scrim: 40;
+  --z-drawer: 50;
+  --z-celebration: 60;
+  --z-toast: 70;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #141210;
+  --surface: #1b1815;
+  --surface-2: #221e1a;
+  --surface-hover: #221e1a;
+  --surface-pressed: #2a2521;
+  --ink: #f3ede6;
+  --ink-2: #d8cfc5;
+  --muted: #a2968a;
+  --line: #332c26;
+  --line-soft: #28231f;
+  --line-strong: #4a4038;
+  --accent: #f0794f;
+  --accent-hover: #ff9468;
+  --accent-soft: #2e1c14;
+  --accent-ink: #1a0f0a;
+  --danger: #ff8a7a;
+  --danger-soft: #2c1714;
+  --warn: #e8b45e;
+  --warn-soft: #2a2114;
+  --ok: #7fc4b4;
+  --ok-soft: #17251f;
+  --prio-high: #ff8a7a;
+  --prio-medium: #e8b45e;
+  --prio-low: #7fc4b4;
+  --scrim: rgb(0 0 0 / 0.6);
+  --focus-ring: rgb(240 121 79 / 0.45);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 18px 44px -22px rgb(0 0 0 / 0.8), 0 2px 10px rgb(0 0 0 / 0.5);
+}

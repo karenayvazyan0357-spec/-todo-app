@@ -1,0 +1,410 @@
+/* База: сброс, типографика и каркас страницы (боковая панель + рабочая область). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Атрибут hidden должен побеждать display у компонентов. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+svg {
+  display: block;
+  flex: none;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* Видимый фокус только там, где он нужен клавиатуре. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  z-index: 100;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Затемнение под мобильным меню: клик по нему закрывает панель. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  background: var(--scrim);
+  animation: scrim-in var(--t-base) var(--ease);
+}
+
+body.is-locked {
+  overflow: hidden;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.noscript {
+  margin: var(--sp-6) auto;
+  max-width: 44ch;
+  padding: var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  text-align: center;
+}
+
+/* ——— Боковая панель ——— */
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  height: 100vh;
+  height: 100dvh;
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  border-right: 1px solid var(--line);
+  background: var(--bg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+}
+
+.sidebar__close {
+  display: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.brand__name {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 0;
+}
+
+.nav__label {
+  padding-inline: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav__add {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-align: left;
+}
+
+.nav__add:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.sidebar__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: auto;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.sidebar__note {
+  padding-inline: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.sidebar__foot .link-btn {
+  min-height: 40px;
+  justify-content: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.sidebar__foot .link-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+/* ——— Рабочая область ——— */
+
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) clamp(var(--sp-4), 4vw, var(--sp-9));
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.topbar__title {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-title {
+  font-family: var(--font-serif);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.page-subtitle {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.topbar__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.menu-btn {
+  display: none;
+}
+
+.content {
+  width: 100%;
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding: var(--sp-6) clamp(var(--sp-4), 4vw, var(--sp-9)) var(--sp-12);
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--z-drawer);
+    width: min(86vw, var(--sidebar-w));
+    padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow-2);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition: transform var(--t-slow) var(--ease), visibility var(--t-slow);
+  }
+
+  .sidebar__close,
+  .menu-btn {
+    display: inline-flex;
+  }
+
+  .app.is-nav-open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .topbar {
+    padding-top: calc(var(--sp-3) + env(safe-area-inset-top));
+  }
+
+  .content {
+    padding-bottom: calc(var(--sp-12) + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 901px) {
+  .sidebar {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    padding-inline: var(--sp-4);
+  }
+
+  .topbar__title {
+    order: 1;
+  }
+
+  .menu-btn {
+    order: 0;
+  }
+
+  .topbar__tools {
+    order: 2;
+    flex-basis: 100%;
+  }
+
+  .page-title {
+    font-size: 1.375rem;
+  }
+}
