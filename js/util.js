@@ -108,10 +108,6 @@
     return many;
   }
 
-  function nowISOString(now) {
-    return (now || new Date()).toISOString();
-  }
-
   /** Обрезаем, схлопываем пробелы и отбрасываем управляющие символы. */
   function cleanText(value, maxLength) {
     var text = value == null ? '' : String(value);
@@ -127,18 +123,6 @@
       random = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
     }
     return (prefix || '') + random;
-  }
-
-  function debounce(fn, wait) {
-    var timer = 0;
-    return function () {
-      var args = arguments;
-      var self = this;
-      clearTimeout(timer);
-      timer = setTimeout(function () {
-        fn.apply(self, args);
-      }, wait);
-    };
   }
 
   function isEditableTarget(target) {
@@ -160,8 +144,6 @@
   }
 
   App.util = {
-    DAY_MS: DAY_MS,
-    LOCALE: LOCALE,
     toISODate: toISODate,
     todayISO: todayISO,
     isISODate: isISODate,
@@ -173,10 +155,8 @@
     formatDateTime: formatDateTime,
     formatDue: formatDue,
     plural: plural,
-    nowISOString: nowISOString,
     cleanText: cleanText,
     createId: createId,
-    debounce: debounce,
     isEditableTarget: isEditableTarget,
     el: el,
     setText: setText

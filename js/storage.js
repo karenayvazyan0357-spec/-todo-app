@@ -134,25 +134,10 @@
     }
   }
 
-  function remove(key) {
-    try {
-      backend().removeItem(key);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
   App.storage = {
     KEY: KEY,
-    THEME_KEY: THEME_KEY,
-    CORRUPT_PREFIX: CORRUPT_PREFIX,
     load: load,
     save: save,
-    saveTheme: saveTheme,
-    remove: remove,
-    status: function () {
-      return { available: status.available, error: status.lastError };
-    }
+    saveTheme: saveTheme
   };
 })(window);

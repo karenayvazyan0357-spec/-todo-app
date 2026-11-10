@@ -531,11 +531,25 @@
       emit(reason || 'state:replace');
     }
 
+    /** Импорт: подменяем состояние, но оставляем возможность отменить через Ctrl+Z. */
+    function importState(snapshot) {
+      if (!snapshot || !Array.isArray(snapshot.tasks) || !Array.isArray(snapshot.lists)) return null;
+      var previous = state;
+      state = snapshot;
+      clearUndo();
+      pushUndo('Данные импортированы', function () {
+        state = previous;
+      });
+      emit('state:import');
+      return state;
+    }
+
     return {
       get: get,
       subscribe: subscribe,
       init: init,
       replace: replace,
+      importState: importState,
       canUndo: canUndo,
       undo: undo,
       actions: {

@@ -158,6 +158,9 @@
     if (refs.sortSelect && refs.sortSelect.value !== state.settings.sort) {
       refs.sortSelect.value = state.settings.sort;
     }
+    if (refs.themeSelect && refs.themeSelect.value !== state.settings.theme) {
+      refs.themeSelect.value = state.settings.theme;
+    }
     if (refs.searchClear) refs.searchClear.hidden = !query;
   }
 
@@ -536,7 +539,6 @@
 
   App.render = {
     init: init,
-    update: update,
-    taskSignature: taskSignature
+    update: update
   };
 })(window);

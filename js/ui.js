@@ -21,8 +21,7 @@
     }, 50);
   }
 
-  function dismiss(node) {
-    var entry = stateByNode.get(node);
+  function dismiss(node) {    var entry = stateByNode.get(node);
     if (entry) {
       clearTimeout(entry.timer);
       stateByNode.delete(node);
@@ -104,14 +103,9 @@
     };
   }
 
-  function closeAll() {
-    Array.prototype.slice.call(refs.toasts ? refs.toasts.children : []).forEach(dismiss);
-  }
-
   App.ui = {
     init: init,
     announce: announce,
-    toast: toast,
-    closeAll: closeAll
+    toast: toast
   };
 })(window);

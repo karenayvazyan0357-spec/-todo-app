@@ -48,6 +48,19 @@
     refs.confirmCancel = byId('confirmCancel');
     refs.helpDialog = byId('helpDialog');
 
+    refs.statsDialog = byId('statsDialog');
+    refs.statsRing = byId('statsRing');
+    refs.statsPercentValue = byId('statsPercentValue');
+    refs.statsCaption = byId('statsCaption');
+    refs.statDoneToday = byId('statDoneToday');
+    refs.statDoneWeek = byId('statDoneWeek');
+    refs.statTotalDone = byId('statTotalDone');
+    refs.statOverdue = byId('statOverdue');
+
+    refs.messageDialog = byId('messageDialog');
+    refs.messageTitle = byId('messageTitle');
+    refs.messageBody = byId('messageBody');
+
     if (!refs.taskDialog || !refs.listDialog || !refs.confirmDialog) return;
     initialized = true;
     bind();
@@ -318,6 +331,65 @@
     if (closeButton) closeButton.focus();
   }
 
+  // ——— Статистика ———
+
+  function openStats() {
+    if (!refs.statsDialog) return;
+    var stats = App.selectors.computeStats(App.store.get(), new Date());
+    var radius = 48;
+    var circumference = 2 * Math.PI * radius;
+    var offset = circumference * (1 - stats.percent / 100);
+
+    if (refs.statsRing) {
+      refs.statsRing.style.strokeDasharray = circumference.toFixed(2);
+      refs.statsRing.style.strokeDashoffset = offset.toFixed(2);
+      refs.statsRing.setAttribute(
+        'aria-label',
+        'Выполнено ' + stats.percent + ' процентов: ' + stats.done + ' из ' + stats.total + ' задач'
+      );
+    }
+    if (refs.statsPercentValue) refs.statsPercentValue.textContent = String(stats.percent);
+    if (refs.statsCaption) {
+      refs.statsCaption.textContent = stats.total
+        ? 'Выполнено ' + stats.done + ' из ' + stats.total + ' ' + util.plural(stats.total, 'задачи', 'задач', 'задач')
+        : 'Пока нет ни одной задачи — статистика появится вместе с первой.';
+    }
+    if (refs.statDoneToday) refs.statDoneToday.textContent = String(stats.doneToday);
+    if (refs.statDoneWeek) refs.statDoneWeek.textContent = String(stats.doneWeek);
+    if (refs.statTotalDone) refs.statTotalDone.textContent = String(stats.done);
+    if (refs.statOverdue) refs.statOverdue.textContent = String(stats.overdue);
+
+    if (!refs.statsDialog.open) refs.statsDialog.showModal();
+    var closeButton = refs.statsDialog.querySelector('[data-close-dialog]');
+    if (closeButton) closeButton.focus();
+  }
+
+  // ——— Сообщение с подробностями ———
+
+  function showMessage(options) {
+    options = options || {};
+    if (!refs.messageDialog) {
+      App.ui.toast(options.title || 'Ошибка', { variant: 'warn', duration: 9000 });
+      return;
+    }
+    refs.messageTitle.textContent = options.title || 'Сообщение';
+    refs.messageBody.textContent = '';
+    if (options.text) refs.messageBody.appendChild(el('p', null, options.text));
+
+    if (options.errors && options.errors.length) {
+      var list = el('ul', 'errors');
+      options.errors.forEach(function (message) {
+        var item = el('li', null, message);
+        list.appendChild(item);
+      });
+      refs.messageBody.appendChild(list);
+    }
+
+    if (!refs.messageDialog.open) refs.messageDialog.showModal();
+    var closeButton = refs.messageDialog.querySelector('[data-close-dialog]');
+    if (closeButton) closeButton.focus();
+  }
+
   // ——— Подтверждение ———
 
   function askConfirm(options) {
@@ -409,6 +481,18 @@
       });
     }
 
+    if (refs.statsDialog) {
+      refs.statsDialog.addEventListener('click', function (event) {
+        if (event.target.closest('[data-close-dialog]')) refs.statsDialog.close();
+      });
+    }
+
+    if (refs.messageDialog) {
+      refs.messageDialog.addEventListener('click', function (event) {
+        if (event.target.closest('[data-close-dialog]')) refs.messageDialog.close();
+      });
+    }
+
     refs.confirmDialog.addEventListener('close', function () {
       var resolve = pendingConfirm;
       pendingConfirm = null;
@@ -421,6 +505,8 @@
     openTask: openTask,
     openList: openList,
     openHelp: openHelp,
+    openStats: openStats,
+    showMessage: showMessage,
     askConfirm: askConfirm
   };
 })(window);

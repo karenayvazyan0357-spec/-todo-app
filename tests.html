@@ -133,6 +133,7 @@
     <script src="js/selectors.js"></script>
     <script src="js/state.js"></script>
     <script src="js/parser.js"></script>
+    <script src="js/transfer.js"></script>
     <script>
       (function () {
         'use strict';
@@ -563,6 +564,87 @@
             return task.title;
           });
           assertDeepEqual(order, ['C', 'A', 'B']);
+        });
+
+        suite('Статистика');
+
+        test('считает выполнено сегодня, за неделю и процент', function () {
+          var tasks = [
+            makeTask({ id: 'a', done: true, completedAt: new Date(2026, 1, 10, 9, 0, 0).toISOString(), order: 1 }),
+            makeTask({ id: 'b', done: true, completedAt: new Date(2026, 1, 8, 9, 0, 0).toISOString(), order: 2 }),
+            makeTask({ id: 'c', done: true, completedAt: new Date(2026, 0, 20, 9, 0, 0).toISOString(), order: 3 }),
+            makeTask({ id: 'd', due: YESTERDAY, order: 4 }),
+            makeTask({ id: 'e', due: TODAY, order: 5 })
+          ];
+          var stats = App.selectors.computeStats(makeState(tasks), NOW);
+          assertEqual(stats.total, 5);
+          assertEqual(stats.done, 3);
+          assertEqual(stats.doneToday, 1);
+          assertEqual(stats.doneWeek, 2);
+          assertEqual(stats.overdue, 1);
+          assertEqual(stats.dueToday, 1);
+          assertEqual(stats.percent, 60);
+        });
+
+        test('пустой список даёт нулевую статистику', function () {
+          var stats = App.selectors.computeStats(makeState([]), NOW);
+          assertEqual(stats.total, 0);
+          assertEqual(stats.percent, 0);
+          assertEqual(stats.doneToday, 0);
+        });
+
+        suite('Экспорт и импорт');
+
+        test('корректный экспорт проходит проверку файла', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Купить молоко', priority: 3, tags: ['дом'] });
+          var text = JSON.stringify(store.get());
+          var parsed = App.transfer.parseText(text);
+          assert(parsed.ok, 'файл должен приниматься');
+          assertEqual(parsed.state.tasks.length, 1);
+          assertEqual(parsed.state.tasks[0].priority, 3);
+        });
+
+        test('мусорный файл отклоняется', function () {
+          var parsed = App.transfer.parseText('{это не json');
+          assertEqual(parsed.ok, false);
+          assertIncludes(parsed.message, 'JSON');
+        });
+
+        test('файл неизвестной версии отклоняется', function () {
+          var parsed = App.transfer.parseText(JSON.stringify({ version: 99, lists: [], tasks: [] }));
+          assertEqual(parsed.ok, false);
+          assertIncludes(parsed.message, 'версии');
+        });
+
+        test('файл с неверной задачей отклоняется и не портит текущие данные', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Своя задача' });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].priority = 42;
+          var parsed = App.transfer.parseText(JSON.stringify(snapshot));
+          assertEqual(parsed.ok, false);
+          assertIncludes(parsed.errors.join(' '), 'приоритет');
+          assertEqual(store.get().tasks.length, 1, 'текущая задача на месте');
+          assertEqual(store.get().tasks[0].title, 'Своя задача');
+        });
+
+        test('импорт заменяет данные, Ctrl+Z возвращает прежние', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Своя задача' });
+
+          var other = makeStore();
+          other.actions.addTask({ title: 'Из файла' });
+          var snapshot = JSON.parse(JSON.stringify(other.get()));
+
+          var imported = store.importState(snapshot);
+          assert(!!imported, 'импорт выполнен');
+          assertEqual(store.get().tasks.length, 1);
+          assertEqual(store.get().tasks[0].title, 'Из файла');
+
+          store.undo();
+          assertEqual(store.get().tasks.length, 1);
+          assertEqual(store.get().tasks[0].title, 'Своя задача');
         });
 
         suite('Миграция и валидация');

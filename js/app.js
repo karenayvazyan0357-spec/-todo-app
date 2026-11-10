@@ -7,7 +7,9 @@
   var store = null;
   var refs = {};
   var warnedSave = false;
+  var appliedThemeMode = null;
   var DEFAULT_HINT = 'Enter — добавить. Подсказки: «завтра», «!3», «#дом».';
+  var systemTheme = global.matchMedia ? global.matchMedia('(prefers-color-scheme: dark)') : null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -31,6 +33,12 @@
       listNav: byId('listNav'),
       addListBtn: byId('addListBtn'),
       helpBtn: byId('helpBtn'),
+      statsBtn: byId('statsBtn'),
+      exportBtn: byId('exportBtn'),
+      importBtn: byId('importBtn'),
+      importInput: byId('importInput'),
+      themeSelect: byId('themeSelect'),
+      celebration: byId('celebration'),
       pageTitle: byId('pageTitle'),
       statTotal: byId('statTotal'),
       statTotalWord: byId('statTotalWord'),
@@ -54,6 +62,7 @@
     App.render.init(refs);
     App.ui.init({ toasts: refs.toasts, live: refs.live });
     App.dialogs.init();
+    App.fx.init(refs.celebration);
     store.subscribe(handleChange);
     bindEvents();
     App.dnd.init({
@@ -62,21 +71,141 @@
         focusTaskAction(taskId, 'grip');
       }
     });
+    applyTheme();
     App.render.update('init');
     updateComposerHint();
+    listenSystemTheme();
 
     if (loaded.warning) {
       App.ui.toast(loaded.warning, { variant: 'warn', duration: 10000 });
     }
   }
 
-  function handleChange() {
+  function handleChange(reason) {
+    if (reason === 'state:sync') {
+      App.render.update('sync');
+      applyTheme();
+      return;
+    }
     var result = App.storage.save(store.get());
-    App.render.update('change');
+    App.render.update(reason);
+    applyTheme();
     if (!result.ok && !warnedSave) {
       warnedSave = true;
       App.ui.toast(result.error, { variant: 'warn', duration: 10000 });
     }
+  }
+
+  // ——— Тема ———
+
+  function applyTheme() {
+    var mode = store.get().settings.theme;
+    var systemDark = systemTheme ? systemTheme.matches : false;
+    var resolved = mode === 'dark' || (mode === 'system' && systemDark) ? 'dark' : 'light';
+    var root = document.documentElement;
+
+    if (root.dataset.theme !== resolved) root.dataset.theme = resolved;
+    root.style.colorScheme = resolved;
+
+    var color = resolved === 'dark' ? '#141210' : '#faf8f5';
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < metas.length; i += 1) metas[i].setAttribute('content', color);
+
+    // Зеркало для inline-скрипта в <head>: он не должен ждать загрузки состояния.
+    if (mode !== appliedThemeMode) {
+      App.storage.saveTheme(mode);
+      appliedThemeMode = mode;
+    }
+    if (refs.themeSelect && refs.themeSelect.value !== mode) refs.themeSelect.value = mode;
+  }
+
+  function listenSystemTheme() {
+    if (!systemTheme) return;
+    var handler = function () {
+      if (store.get().settings.theme === 'system') applyTheme();
+    };
+    if (typeof systemTheme.addEventListener === 'function') systemTheme.addEventListener('change', handler);
+    else if (typeof systemTheme.addListener === 'function') systemTheme.addListener(handler);
+  }
+
+  // ——— Экспорт и импорт ———
+
+  function summaryOf(state) {
+    var taskCount = state.tasks.length;
+    var listCount = state.lists.length;
+    return (
+      taskCount +
+      ' ' +
+      App.util.plural(taskCount, 'задача', 'задачи', 'задач') +
+      ', ' +
+      listCount +
+      ' ' +
+      App.util.plural(listCount, 'список', 'списка', 'списков')
+    );
+  }
+
+  function handleExport() {
+    var result = App.transfer.exportData(store.get());
+    if (!result.ok) {
+      App.ui.toast(result.error, { variant: 'warn', duration: 8000 });
+      return;
+    }
+    App.ui.toast('Экспорт скачан: файл с задачами.', { duration: 5000 });
+  }
+
+  function handleImportClick() {
+    refs.importInput.value = '';
+    refs.importInput.click();
+  }
+
+  async function handleImportFile(event) {
+    var file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+
+    var result = await App.transfer.readFile(file);
+    if (!result.ok) {
+      App.dialogs.showMessage({
+        title: 'Импорт не удался',
+        text: result.message,
+        errors: result.errors
+      });
+      return;
+    }
+
+    var confirmed = await App.dialogs.askConfirm({
+      title: 'Заменить данные?',
+      text:
+        'В файле: ' +
+        summaryOf(result.state) +
+        '. Сейчас: ' +
+        summaryOf(store.get()) +
+        '. Текущие данные будут заменены — отменить можно через Ctrl+Z.',
+      confirmLabel: 'Импортировать',
+      danger: false
+    });
+    if (!confirmed) return;
+
+    App.view.query = '';
+    App.view.editingId = null;
+    App.view.expanded = new Set();
+    if (refs.searchInput) refs.searchInput.value = '';
+    if (refs.searchClear) refs.searchClear.hidden = true;
+
+    store.actions.importState(result.state);
+    App.ui.toast('Импортировано: ' + summaryOf(result.state) + '.', { duration: 6000 });
+    App.ui.announce('Данные импортированы. Можно отменить через Ctrl+Z.');
+  }
+
+  function handleStorageSync(event) {
+    if (!event || event.key !== App.storage.KEY || !event.newValue) return;
+    var loaded = App.storage.load(new Date());
+    if (loaded.warning) {
+      App.ui.toast(loaded.warning, { variant: 'warn', duration: 9000 });
+      return;
+    }
+    store.replace(loaded.state, 'state:sync');
+    App.ui.toast('Список обновлён в другой вкладке', { duration: 3000 });
   }
 
   // ——— Утилиты работы с DOM задач ———
@@ -130,6 +259,17 @@
       if (tasks[i].id === taskId) return tasks[i];
     }
     return null;
+  }
+
+  function isCurrentListComplete() {
+    var currentId = App.selectors.currentListId(store.get());
+    var listTasks = App.selectors.listTasks(store.get(), currentId);
+    return (
+      listTasks.length > 0 &&
+      listTasks.every(function (task) {
+        return task.done;
+      })
+    );
   }
 
   // ——— Быстрый ввод ———
@@ -322,8 +462,10 @@
     var action = trigger.dataset.action;
 
     if (action === 'toggle') {
+      var wasComplete = isCurrentListComplete();
       var toggled = store.actions.toggleTask(taskId);
       if (toggled) {
+        if (toggled.done && !wasComplete && isCurrentListComplete()) App.fx.celebrate();
         App.ui.announce(toggled.done ? 'Выполнено: ' + toggled.title : 'Снова в работе: ' + toggled.title);
       }
       return;
@@ -610,6 +752,31 @@
       if (isNavOpen()) setNavOpen(false, false);
       App.dialogs.openHelp();
     });
+
+    refs.statsBtn.addEventListener('click', function () {
+      if (isNavOpen()) setNavOpen(false, false);
+      App.dialogs.openStats();
+    });
+
+    refs.exportBtn.addEventListener('click', function () {
+      if (isNavOpen()) setNavOpen(false, false);
+      handleExport();
+    });
+
+    refs.importBtn.addEventListener('click', function () {
+      if (isNavOpen()) setNavOpen(false, false);
+      handleImportClick();
+    });
+    refs.importInput.addEventListener('change', handleImportFile);
+
+    refs.themeSelect.addEventListener('change', function () {
+      store.actions.setSettings({ theme: refs.themeSelect.value });
+      applyTheme();
+      var labels = { system: 'Системная', light: 'Светлая', dark: 'Тёмная' };
+      App.ui.announce('Тема: ' + labels[refs.themeSelect.value]);
+    });
+
+    global.addEventListener('storage', handleStorageSync);
 
     refs.menuBtn.addEventListener('click', function () {
       setNavOpen(true);

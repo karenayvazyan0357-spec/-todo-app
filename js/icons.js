@@ -81,5 +81,5 @@
     return svg;
   }
 
-  App.icons = { create: create, names: Object.keys(shapes) };
+  App.icons = { create: create };
 })(window);

@@ -174,5 +174,5 @@
     finish(false);
   }
 
-  App.dnd = { init: init, isEnabled: isEnabled };
+  App.dnd = { init: init };
 })(window);

@@ -140,20 +140,11 @@
     return stats;
   }
 
-  /** Сколько задач видно при текущих фильтрах — для живых подписей. */
-  function visibleCount(state, query, now) {
-    return visibleTasks(state, query, now).length;
-  }
-
   App.selectors = {
     findList: findList,
     currentListId: currentListId,
     listTasks: listTasks,
-    matchesFilter: matchesFilter,
-    matchesQuery: matchesQuery,
-    sorted: sorted,
     visibleTasks: visibleTasks,
-    visibleCount: visibleCount,
     countByList: countByList,
     computeStats: computeStats
   };
