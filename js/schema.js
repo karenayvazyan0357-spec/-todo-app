@@ -31,7 +31,8 @@
   }
 
   function isValidId(value) {
-    return typeof value === 'string' && value.length > 0 && value.length <= 64;
+    // Только безопасный для селекторов и атрибутов набор.
+    return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value);
   }
 
   function isTimestamp(value) {
@@ -285,7 +286,9 @@
     function readList(item, index) {
       var where = 'Список №' + (index + 1);
       if (!isPlainObject(item)) return fail(where + ': ожидается объект.');
-      if (!isValidId(item.id)) return fail(where + ': поле «id» должно быть непустой строкой.');
+      if (!isValidId(item.id)) {
+        return fail(where + ': поле «id» должно состоять из латиницы, цифр, «-» или «_».');
+      }
       if (item.color != null && !isValidColor(item.color)) {
         return fail(where + ': цвет «' + String(item.color) + '» не из палитры.');
       }
@@ -306,7 +309,9 @@
     function readTask(item, index) {
       var where = 'Задача №' + (index + 1);
       if (!isPlainObject(item)) return fail(where + ': ожидается объект.');
-      if (!isValidId(item.id)) return fail(where + ': поле «id» должно быть непустой строкой.');
+      if (!isValidId(item.id)) {
+        return fail(where + ': поле «id» должно состоять из латиницы, цифр, «-» или «_».');
+      }
       if (tasksById[item.id]) return fail(where + ': повторяющийся id «' + item.id + '».');
       if (typeof item.title !== 'string') return fail(where + ': поле «title» должно быть строкой.');
       var title = App.util.cleanText(item.title, LIMITS.title);
@@ -344,7 +349,14 @@
           typeof subtask.done === 'boolean'
         );
       });
-      if (!subtasksOk) return fail(where + ': у подзадач нужны id, title и done.');
+      if (!subtasksOk) return fail(where + ': у подзадач нужны уникальные id, title и done.');
+      var subtaskIds = {};
+      var subtasksUnique = item.subtasks.every(function (subtask) {
+        if (subtaskIds[subtask.id]) return false;
+        subtaskIds[subtask.id] = true;
+        return true;
+      });
+      if (!subtasksUnique) return fail(where + ': id подзадач не должны повторяться.');
       if (typeof item.order !== 'number' || !isFinite(item.order)) {
         return fail(where + ': поле «order» должно быть числом.');
       }

@@ -193,6 +193,8 @@
     if (refs.searchClear) refs.searchClear.hidden = true;
 
     store.actions.importState(result.state);
+    scrollToTop();
+    if (refs.main) refs.main.focus();
     App.ui.toast('Импортировано: ' + summaryOf(result.state) + '.', { duration: 6000 });
     App.ui.announce('Данные импортированы. Можно отменить через Ctrl+Z.');
   }
@@ -213,6 +215,7 @@
   function taskElement(taskId) {
     var items = refs.taskList.querySelectorAll('.task');
     for (var i = 0; i < items.length; i += 1) {
+      if (items[i].classList.contains('is-leaving')) continue;
       if (items[i].dataset.id === taskId) return items[i];
     }
     return null;
@@ -402,7 +405,18 @@
   function addSubtaskFromCard(taskId, item) {
     var input = item.querySelector('[data-sub-input]');
     if (!input) return;
+    var task = getTask(taskId);
+    if (task && task.subtasks.length >= App.schema.LIMITS.subtasks) {
+      App.ui.announce('К задаче можно добавить не больше ' + App.schema.LIMITS.subtasks + ' подзадач.');
+      input.focus();
+      return;
+    }
     var title = App.util.cleanText(input.value, App.schema.LIMITS.subtaskTitle);
+    if (!title) {
+      App.ui.announce('Введите текст подзадачи.');
+      input.focus();
+      return;
+    }
     var started = store.actions.addSubtask(taskId, title);
     if (!started) {
       input.focus();
@@ -434,7 +448,7 @@
     var removed = store.actions.deleteTask(taskId);
     if (!removed) return;
 
-    App.ui.announce('Удалена задача: ' + removed.title);
+    App.ui.announce('Удалена задача: ' + removed.title + '. Отменить можно в уведомлении или через Ctrl+Z.');
     App.ui.toast('Задача удалена', {
       actionLabel: 'Отменить',
       duration: 6000,
@@ -463,10 +477,21 @@
 
     if (action === 'toggle') {
       var wasComplete = isCurrentListComplete();
+      var visiblePosition = findVisibleTaskIndex(taskId);
       var toggled = store.actions.toggleTask(taskId);
       if (toggled) {
         if (toggled.done && !wasComplete && isCurrentListComplete()) App.fx.celebrate();
         App.ui.announce(toggled.done ? 'Выполнено: ' + toggled.title : 'Снова в работе: ' + toggled.title);
+
+        // При активном фильтре отмеченная задача исчезает — уводим фокус на соседнюю.
+        var stillVisible = App.selectors.visibleTasks(store.get(), App.view.query, new Date()).some(function (item) {
+          return item.id === taskId;
+        });
+        if (!stillVisible) {
+          var remaining = App.selectors.visibleTasks(store.get(), App.view.query, new Date());
+          var neighbour = remaining[visiblePosition.index] || remaining[visiblePosition.index - 1];
+          if (!neighbour || !focusTaskAction(neighbour.id, 'toggle')) refs.taskInput.focus();
+        }
       }
       return;
     }
@@ -572,6 +597,10 @@
     if (refs.searchClear) refs.searchClear.hidden = true;
   }
 
+  function scrollToTop() {
+    if (typeof global.scrollTo === 'function') global.scrollTo(0, 0);
+  }
+
   function handleSearchInput() {
     var value = refs.searchInput.value;
     if (refs.searchClear) refs.searchClear.hidden = !value;
@@ -620,13 +649,24 @@
       return;
     }
     if (App.view.editingId) return;
+
+    var active = document.activeElement;
+    if (active === refs.searchInput) {
+      if (App.view.query || store.get().settings.filter !== 'all') {
+        resetFilters();
+        App.ui.announce('Фильтры сброшены.');
+      } else {
+        active.blur();
+      }
+      return;
+    }
+    if (App.util.isEditableTarget(active)) {
+      active.blur();
+      return;
+    }
     if (App.view.query || store.get().settings.filter !== 'all') {
       resetFilters();
       App.ui.announce('Фильтры сброшены.');
-      return;
-    }
-    if (App.util.isEditableTarget(document.activeElement)) {
-      document.activeElement.blur();
     }
   }
 
@@ -739,6 +779,7 @@
       if (wasOpen) setNavOpen(false, false);
       store.actions.setSettings({ listId: select.dataset.listId });
       if (App.view.query) clearSearch();
+      scrollToTop();
       App.render.update('list-select');
       if (wasOpen && refs.main) refs.main.focus();
     });

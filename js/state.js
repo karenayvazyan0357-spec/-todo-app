@@ -253,6 +253,11 @@
     /** Возврат удалённой задачи из тоста «Отменить» — без зависимости от стека отмены. */
     function restoreTask(task, index) {
       if (!task || !schema.isValidId(task.id) || findTask(task.id)) return null;
+      // Если список успели удалить, задача возвращается во «Входящие».
+      if (!findList(task.listId)) {
+        task.listId = schema.INBOX_ID;
+        task.order = nextOrderFor(schema.INBOX_ID);
+      }
       var target = typeof index === 'number' ? Math.min(Math.max(index, 0), state.tasks.length) : state.tasks.length;
       state.tasks.splice(target, 0, task);
 

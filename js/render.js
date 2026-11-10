@@ -89,10 +89,20 @@
     else button.removeAttribute('aria-current');
 
     setText(name, list.name);
+    name.title = list.name;
     paintDot(dot, list.color);
     setText(count, String(activeCount));
     count.title = 'Активных задач: ' + activeCount;
-    button.setAttribute('aria-label', list.name + ': ' + activeCount + ' ' + util.plural(activeCount, 'активная', 'активные', 'активных'));
+    button.setAttribute(
+      'aria-label',
+      list.name +
+        ': ' +
+        activeCount +
+        ' ' +
+        util.plural(activeCount, 'активная', 'активные', 'активных') +
+        ' ' +
+        util.plural(activeCount, 'задача', 'задачи', 'задач')
+    );
     if (more) more.setAttribute('aria-label', 'Настройки списка «' + list.name + '»');
   }
 
@@ -253,7 +263,7 @@
     return meta;
   }
 
-  function buildSubtaskRow(task, subtask) {
+  function buildSubtaskRow(subtask) {
     var row = el('div', 'subtask' + (subtask.done ? ' is-done' : ''));
     row.dataset.subId = subtask.id;
 
@@ -306,7 +316,7 @@
       container.appendChild(el('p', 'subtasks-empty', 'Подзадач пока нет — добавьте первый шаг.'));
     } else {
       task.subtasks.forEach(function (subtask) {
-        container.appendChild(buildSubtaskRow(task, subtask));
+        container.appendChild(buildSubtaskRow(subtask));
       });
     }
     container.appendChild(buildSubtaskAdd());
@@ -333,6 +343,7 @@
     grip.type = 'button';
     grip.dataset.action = 'grip';
     grip.setAttribute('aria-label', 'Переставить задачу');
+    grip.setAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown');
     grip.title = 'Перетащите мышью или пальцем; с клавиатуры — ↑ / ↓';
     grip.appendChild(icons.create('grip', 16));
 

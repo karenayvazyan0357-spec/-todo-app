@@ -79,6 +79,7 @@
     if (!taskList) return false;
     var items = taskList.querySelectorAll('.task');
     for (var i = 0; i < items.length; i += 1) {
+      if (items[i].classList.contains('is-leaving')) continue;
       if (items[i].dataset.id !== taskId) continue;
       var control = items[i].querySelector('[data-action="' + action + '"]');
       if (control) {
@@ -289,6 +290,7 @@
       }
       App.store.actions.setSettings({ listId: created.id });
       App.ui.announce('Список создан: ' + name);
+      if (typeof global.scrollTo === 'function') global.scrollTo(0, 0);
     }
 
     refs.listDialog.close();
@@ -314,6 +316,7 @@
       listEditingId = null;
       var removed = App.store.actions.deleteList(listId);
       if (!removed) return;
+      if (typeof global.scrollTo === 'function') global.scrollTo(0, 0);
       App.ui.announce('Список удалён: ' + removed.name + '. Задачи перенесены во «Входящие».');
       global.setTimeout(function () {
         var addButton = byId('addListBtn');
@@ -343,10 +346,9 @@
     if (refs.statsRing) {
       refs.statsRing.style.strokeDasharray = circumference.toFixed(2);
       refs.statsRing.style.strokeDashoffset = offset.toFixed(2);
-      refs.statsRing.setAttribute(
-        'aria-label',
-        'Выполнено ' + stats.percent + ' процентов: ' + stats.done + ' из ' + stats.total + ' задач'
-      );
+      var ringLabel = 'Выполнено ' + stats.percent + ' процентов: ' + stats.done + ' из ' + stats.total + ' задач';
+      refs.statsRing.setAttribute('aria-label', ringLabel);
+      if (refs.statsRing.ownerSVGElement) refs.statsRing.ownerSVGElement.setAttribute('aria-label', ringLabel);
     }
     if (refs.statsPercentValue) refs.statsPercentValue.textContent = String(stats.percent);
     if (refs.statsCaption) {

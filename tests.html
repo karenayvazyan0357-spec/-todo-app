@@ -746,6 +746,27 @@
           assertIncludes(result.errors.join(' '), 'не найден');
         });
 
+        test('импорт с небезопасным id отклоняется', function () {
+          var store = makeStore();
+          store.actions.addTask({ title: 'Задача' });
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].id = 'x" data-action="delete';
+          var result = App.schema.validateSnapshot(snapshot);
+          assertEqual(result.ok, false);
+          assertIncludes(result.errors.join(' '), 'id');
+        });
+
+        test('импорт с повторяющимися id подзадач отклоняется', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Задача' });
+          store.actions.addSubtask(task.id, 'Шаг');
+          var snapshot = JSON.parse(JSON.stringify(store.get()));
+          snapshot.tasks[0].subtasks.push({ id: snapshot.tasks[0].subtasks[0].id, title: 'Дубль', done: false });
+          var result = App.schema.validateSnapshot(snapshot);
+          assertEqual(result.ok, false);
+          assertIncludes(result.errors.join(' '), 'повторяться');
+        });
+
         test('импорт не портит исходный объект', function () {
           var store = makeStore();
           store.actions.addTask({ title: 'Задача' });

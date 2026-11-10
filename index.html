@@ -8,7 +8,12 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#faf8f5" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)" />
+    <meta name="application-name" content="Задачи" />
+    <meta name="apple-mobile-web-app-title" content="Задачи" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 
     <!-- Тема ставится до отрисовки, чтобы светлая страница не мигала в тёмной теме. -->
     <script>
@@ -41,6 +46,7 @@
     <script defer src="js/dnd.js"></script>
     <script defer src="js/transfer.js"></script>
     <script defer src="js/fx.js"></script>
+    <script defer src="js/pwa.js"></script>
     <script defer src="js/app.js"></script>
   </head>
   <body>
@@ -353,7 +359,7 @@
     </dialog>
 
     <!-- Статистика -->
-    <dialog class="dialog dialog--sm" id="statsDialog" aria-labelledby="statsTitle">
+    <dialog class="dialog dialog--sm" id="statsDialog" aria-labelledby="statsTitle" aria-describedby="statsCaption">
       <div class="dialog__form">
         <div class="dialog__head">
           <div>
@@ -410,7 +416,7 @@
     </dialog>
 
     <!-- Сообщение об ошибке импорта -->
-    <dialog class="dialog dialog--sm" id="messageDialog" aria-labelledby="messageTitle">
+    <dialog class="dialog dialog--sm" id="messageDialog" aria-labelledby="messageTitle" aria-describedby="messageBody">
       <div class="dialog__form">
         <div class="dialog__head">
           <h2 class="dialog__title" id="messageTitle">Сообщение</h2>

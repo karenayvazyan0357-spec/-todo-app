@@ -36,7 +36,7 @@
 
 .btn--quiet {
   background: transparent;
-  border-color: var(--line-strong);
+  border-color: var(--control-border);
   color: var(--ink-2);
 }
 
@@ -79,10 +79,6 @@
 
 .icon-btn:active {
   background: var(--surface-pressed);
-}
-
-.icon-btn[aria-pressed="true"] {
-  color: var(--accent);
 }
 
 .icon-btn:disabled {
@@ -137,7 +133,7 @@
   width: 100%;
   min-height: var(--tap);
   padding: 0 var(--sp-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
@@ -158,7 +154,7 @@
 
 .input::placeholder {
   color: var(--muted);
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .select {
@@ -182,7 +178,7 @@
   width: clamp(180px, 24vw, 280px);
   min-height: 40px;
   padding: 0 var(--sp-2) 0 var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-full);
   background: var(--surface);
   color: var(--muted);
@@ -203,6 +199,8 @@
   color: var(--ink);
   font-size: var(--fs-sm);
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .search input::placeholder {
@@ -332,12 +330,6 @@
   background: var(--ink);
   border-color: var(--ink);
   color: var(--bg);
-}
-
-.chip__count {
-  margin-left: var(--sp-1);
-  font-size: 0.75em;
-  opacity: 0.65;
 }
 
 .toolbar__right {
@@ -485,7 +477,7 @@
   height: 32px;
   margin-top: 1px;
   border-radius: var(--r-sm);
-  color: var(--line-strong);
+  color: var(--control-border);
   cursor: grab;
   touch-action: none;
   opacity: 0;
@@ -524,7 +516,7 @@
   place-items: center;
   width: 21px;
   height: 21px;
-  border: 1.5px solid var(--line-strong);
+  border: 1.5px solid var(--control-border);
   border-radius: var(--r-full);
   background: var(--surface);
   transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
@@ -775,7 +767,7 @@
   place-items: center;
   width: 15px;
   height: 15px;
-  border: 1.5px solid var(--line-strong);
+  border: 1.5px solid var(--control-border);
   border-radius: var(--r-xs);
   color: var(--accent-ink);
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
@@ -910,6 +902,7 @@ body.is-dragging-task .task:hover {
   max-width: 34ch;
   color: var(--muted);
   font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
 }
 
 .empty .link-btn {
@@ -953,6 +946,7 @@ body.is-dragging-task .task:hover {
 
 .toast__text {
   padding-block: var(--sp-2);
+  overflow-wrap: anywhere;
 }
 
 .toast__action {
@@ -997,6 +991,11 @@ body.is-dragging-task .task:hover {
 
 .dialog::backdrop {
   background: var(--scrim);
+}
+
+/* Даже если UA не умеет dialog, закрытые окна не должны светиться на странице. */
+.dialog:not([open]) {
+  display: none;
 }
 
 .dialog[open] {
@@ -1124,7 +1123,7 @@ body.is-dragging-task .task:hover {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-full);
   cursor: pointer;
 }
@@ -1168,7 +1167,7 @@ body.is-dragging-task .task:hover {
   width: auto;
   min-height: 34px;
   padding: 2px 30px 2px 10px;
-  border-color: var(--line);
+  border-color: var(--control-border);
   background-color: var(--surface);
   font-size: var(--fs-xs);
 }
@@ -1350,10 +1349,6 @@ kbd {
   opacity: 1;
   width: 30px;
   height: 30px;
-}
-
-.dialog .subtask .subtask__delete {
-  opacity: 1;
 }
 
 .subtask-add {
@@ -1638,6 +1633,30 @@ kbd {
 
   .theme-field {
     min-height: var(--tap);
+  }
+
+  .theme-field .select {
+    min-height: var(--tap);
+  }
+
+  .sidebar__foot .link-btn,
+  .empty .link-btn {
+    min-height: var(--tap);
+  }
+
+  .subtask-edit {
+    min-height: var(--tap);
+  }
+
+  .subtask__delete {
+    width: var(--tap);
+    height: var(--tap);
+    opacity: 1;
+  }
+
+  .swatch span {
+    width: var(--tap);
+    height: var(--tap);
   }
 
   .btn {

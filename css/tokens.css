@@ -56,6 +56,7 @@
   --line: #e5ded4;
   --line-soft: #efe9e1;
   --line-strong: #cfc4b6;
+  --control-border: #9a8c7c;
   --accent: #a83c22;
   --accent-hover: #8d3018;
   --accent-soft: #f7e8e2;
@@ -99,6 +100,7 @@
   --line: #332c26;
   --line-soft: #28231f;
   --line-strong: #4a4038;
+  --control-border: #8f8275;
   --accent: #f0794f;
   --accent-hover: #ff9468;
   --accent-soft: #2e1c14;
