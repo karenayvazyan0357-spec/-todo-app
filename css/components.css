@@ -375,7 +375,7 @@
   flex: 1;
   min-width: 0;
   min-height: 40px;
-  padding: var(--sp-2) var(--sp-6) var(--sp-2) var(--sp-2);
+  padding: var(--sp-2) 64px var(--sp-2) var(--sp-2);
   border-radius: var(--r-sm);
   color: var(--ink-2);
   font-size: var(--fs-sm);
@@ -412,7 +412,7 @@
 
 .nav__count {
   position: absolute;
-  right: var(--sp-2);
+  right: 38px;
   top: 50%;
   transform: translateY(-50%);
   padding-inline: 2px;
@@ -635,8 +635,18 @@
   font-weight: 600;
 }
 
+.badge--due-done {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
 .badge--subtasks {
   color: var(--muted);
+}
+
+.badge--subtasks:hover {
+  color: var(--ink);
 }
 
 .task__tags {
@@ -830,14 +840,8 @@
   font-size: var(--fs-sm);
 }
 
-.list-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-2) 0;
-  color: var(--muted);
-  font-size: var(--fs-sm);
+.empty .link-btn {
+  margin-top: var(--sp-1);
 }
 
 /* ——— Тосты ——— */
@@ -905,6 +909,7 @@
 .dialog {
   width: min(560px, calc(100vw - 2 * var(--sp-4)));
   max-height: min(86vh, 860px);
+  max-height: min(88dvh, 860px);
   padding: 0;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
@@ -930,6 +935,7 @@
   display: flex;
   flex-direction: column;
   max-height: inherit;
+  min-height: 0;
 }
 
 .dialog__head {
@@ -960,6 +966,7 @@
   gap: var(--sp-5);
   padding: var(--sp-2) var(--sp-5) var(--sp-5);
   overflow-y: auto;
+  min-height: 0;
 }
 
 .dialog__body--flush {
@@ -970,6 +977,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--sp-2);
   padding: var(--sp-4) var(--sp-5);
   border-top: 1px solid var(--line-soft);
@@ -978,6 +986,21 @@
 
 .dialog__foot--split {
   justify-content: space-between;
+}
+
+.dialog__foot-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.dialog__body p {
+  color: var(--ink-2);
+  font-size: var(--fs-base);
+}
+
+.dialog__body .errors {
+  margin: 0;
 }
 
 .dialog__row {
@@ -989,6 +1012,11 @@
 .dialog__actions-note {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+
+.input.is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
 }
 
 /* Цвета списка */
@@ -1178,6 +1206,11 @@ kbd {
 
 /* Подзадачи в диалоге */
 
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+}
+
 .subtask-edit {
   display: flex;
   align-items: center;
@@ -1186,16 +1219,31 @@ kbd {
   border-bottom: 1px solid var(--line-soft);
 }
 
+.subtask-edit input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ok);
+  cursor: pointer;
+}
+
 .subtask-edit__title {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
 .subtask-edit.is-done .subtask-edit__title {
   color: var(--muted);
   text-decoration: line-through;
+}
+
+.subtask-edit .subtask__delete {
+  opacity: 1;
+  width: 30px;
+  height: 30px;
 }
 
 .dialog .subtask .subtask__delete {
@@ -1211,6 +1259,11 @@ kbd {
 .subtask-add .input {
   flex: 1;
   min-height: 40px;
+}
+
+.task__subs .subtask-add .input,
+.task__subs .subtask-add .btn {
+  min-height: 36px;
 }
 
 /* Список ошибок импорта */
@@ -1355,9 +1408,7 @@ kbd {
   }
 
   .composer {
-    position: sticky;
-    top: calc(var(--sp-2) + env(safe-area-inset-top));
-    z-index: 5;
+    padding: var(--sp-2);
   }
 
   .composer__submit {
@@ -1368,12 +1419,41 @@ kbd {
     display: none;
   }
 
+  .search input,
+  .task__edit-input {
+    /* 16px не даёт iOS зумить страницу при фокусе на поле. */
+    font-size: 1rem;
+  }
+
   .toolbar {
     margin-top: var(--sp-4);
   }
 
   .chip {
-    min-height: 36px;
+    min-height: var(--tap);
+    padding-inline: var(--sp-4);
+  }
+
+  .toolbar .select {
+    min-height: var(--tap);
+  }
+
+  .search {
+    min-height: var(--tap);
+  }
+
+  .search input {
+    height: 42px;
+  }
+
+  .search__clear {
+    width: var(--tap);
+    height: 42px;
+  }
+
+  .composer__input,
+  .composer__submit {
+    min-height: var(--tap);
   }
 
   .empty {
@@ -1392,9 +1472,7 @@ kbd {
 @media (pointer: coarse) {
   .task__actions {
     opacity: 1;
-  }
-
-  .task__check {
+  }  .task__check {
     width: var(--tap);
     height: var(--tap);
   }
@@ -1413,6 +1491,23 @@ kbd {
     width: var(--tap);
     height: var(--tap);
   }
+
+  .nav__btn {
+    min-height: var(--tap);
+  }
+
+  .btn {
+    min-height: var(--tap);
+  }
+
+  .badge--subtasks {
+    min-height: var(--tap);
+  }
+
+  .task__subs .subtask-add .input,
+  .task__subs .subtask-add .btn {
+    min-height: var(--tap);
+  }
 }
 
 @media (hover: none) {
@@ -1421,11 +1516,30 @@ kbd {
   }
 
   .nav__count {
-    opacity: 0;
+    right: 48px;
+    opacity: 1;
+  }
+
+  .nav__btn {
+    padding-right: 78px;
   }
 
   .task__actions {
     opacity: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .dialog__actions-note {
+    display: none;
+  }
+
+  .dialog__foot--split {
+    flex-wrap: wrap;
+  }
+
+  .dialog__foot--split .dialog__foot-actions {
+    margin-left: auto;
   }
 }
 

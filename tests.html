@@ -349,6 +349,100 @@
           assertEqual(store.actions.deleteTask('нет-такой'), null);
         });
 
+        suite('Списки');
+
+        test('список создаётся с названием и цветом', function () {
+          var store = makeStore();
+          var list = store.actions.addList('  Работа  ', '#3f8a7a');
+          assert(!!list, 'список создан');
+          assertEqual(list.name, 'Работа');
+          assertEqual(list.color, '#3f8a7a');
+          assertEqual(store.get().lists.length, 2);
+        });
+
+        test('список переименовывается и меняет цвет', function () {
+          var store = makeStore();
+          var list = store.actions.addList('Дом', '#c0603a');
+          store.actions.renameList(list.id, 'Домашние дела');
+          store.actions.setListColor(list.id, '#52708c');
+          var saved = App.selectors.findList(store.get(), list.id);
+          assertEqual(saved.name, 'Домашние дела');
+          assertEqual(saved.color, '#52708c');
+        });
+
+        test('«Входящие» нельзя удалить или переименовать', function () {
+          var store = makeStore();
+          assertEqual(store.actions.deleteList('inbox'), null);
+          assertEqual(store.actions.renameList('inbox', 'Другое'), null);
+          assertEqual(store.get().lists.length, 1);
+        });
+
+        test('удаление списка переносит задачи во «Входящие»', function () {
+          var store = makeStore();
+          var list = store.actions.addList('Работа', '#52708c');
+          store.actions.setSettings({ listId: list.id });
+          store.actions.addTask({ title: 'Отчёт' });
+          var removed = store.actions.deleteList(list.id);
+          assert(!!removed, 'список удалён');
+          assertEqual(store.get().lists.length, 1);
+          assertEqual(store.get().tasks[0].listId, 'inbox');
+          assertEqual(store.get().settings.listId, 'inbox');
+
+          store.undo();
+          assertEqual(store.get().lists.length, 2);
+          assertEqual(store.get().tasks[0].listId, list.id);
+        });
+
+        suite('Правка задачи и подзадачи');
+
+        test('правка задачи обновляет поля', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Черновик' });
+          var due = App.util.shiftISODate(TODAY, 3);
+          store.actions.updateTask(task.id, {
+            title: 'Финал',
+            due: due,
+            priority: 2,
+            tags: ['работа'],
+            listId: 'inbox'
+          });
+          var updated = store.get().tasks[0];
+          assertEqual(updated.title, 'Финал');
+          assertEqual(updated.due, due);
+          assertEqual(updated.priority, 2);
+          assertDeepEqual(updated.tags, ['работа']);
+        });
+
+        test('пустое название при правке не применяется', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Важное' });
+          store.actions.updateTask(task.id, { title: '   ' });
+          assertEqual(store.get().tasks[0].title, 'Важное');
+        });
+
+        test('подзадачи добавляются, отмечаются и удаляются', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Переезд' });
+          store.actions.addSubtask(task.id, 'Собрать коробки');
+          store.actions.addSubtask(task.id, 'Заказать грузовик');
+          assertEqual(store.get().tasks[0].subtasks.length, 2);
+
+          var subtaskId = store.get().tasks[0].subtasks[0].id;
+          store.actions.toggleSubtask(task.id, subtaskId);
+          assertEqual(store.get().tasks[0].subtasks[0].done, true);
+
+          store.actions.deleteSubtask(task.id, subtaskId);
+          assertEqual(store.get().tasks[0].subtasks.length, 1);
+          assertEqual(store.get().tasks[0].subtasks[0].title, 'Заказать грузовик');
+        });
+
+        test('пустая подзадача не добавляется', function () {
+          var store = makeStore();
+          var task = store.actions.addTask({ title: 'Переезд' });
+          assertEqual(store.actions.addSubtask(task.id, '   '), null);
+          assertEqual(store.get().tasks[0].subtasks.length, 0);
+        });
+
         suite('Миграция и валидация');
 
         test('данные версии 1 превращаются в версию 2', function () {

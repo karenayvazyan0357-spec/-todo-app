@@ -58,6 +58,14 @@
     return fmtDateLong.format(fromISODate(value));
   }
 
+  /** Короткая подпись даты — для выполненных задач, где не нужен акцент на сроке. */
+  function formatDateShort(value) {
+    if (!isISODate(value)) return '';
+    var date = fromISODate(value);
+    var now = new Date();
+    return date.getFullYear() === now.getFullYear() ? fmtDateShort.format(date) : fmtDateShortYear.format(date);
+  }
+
   function formatDateTime(isoString) {
     var date = new Date(isoString);
     return isNaN(date.getTime()) ? '' : fmtDateTime.format(date);
@@ -161,6 +169,7 @@
     shiftISODate: shiftISODate,
     daysBetween: daysBetween,
     formatDateLong: formatDateLong,
+    formatDateShort: formatDateShort,
     formatDateTime: formatDateTime,
     formatDue: formatDue,
     plural: plural,

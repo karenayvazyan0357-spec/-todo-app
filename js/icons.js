@@ -43,6 +43,11 @@
       ['path', { d: 'M7 10h.01M10.3 10h.01M13.6 10h.01M17 10h.01M8 14h8' }]
     ],
     list: [['path', { d: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01' }]],
+    more: [
+      ['circle', { cx: 5.5, cy: 12, r: 1.6, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 12, cy: 12, r: 1.6, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 18.5, cy: 12, r: 1.6, fill: 'currentColor', stroke: 'none' }]
+    ],
     lines: [['path', { d: 'M4 7.5h16M4 12h10M4 16.5h16' }]],
     undo: [['path', { d: 'M4 9h9.5a5.5 5.5 0 1 1 0 11H8M4 9l4-4M4 9l4 4' }]]
   };

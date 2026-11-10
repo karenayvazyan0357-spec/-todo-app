@@ -250,6 +250,146 @@
       return task;
     }
 
+    // ——— Действия со списками ———
+
+    function addList(name, color) {
+      var cleanName = util.cleanText(name, LIMITS.listName);
+      if (!cleanName || state.lists.length >= LIMITS.lists) return null;
+      var fallbackColor = schema.LIST_COLORS[(state.lists.length - 1) % schema.LIST_COLORS.length];
+      var list = {
+        id: createId('l_'),
+        name: cleanName,
+        color: schema.isValidColor(color) ? color : fallbackColor,
+        createdAt: stamp()
+      };
+
+      state.lists.push(list);
+      pushUndo('Создан список', function () {
+        var index = state.lists.indexOf(list);
+        if (index !== -1) state.lists.splice(index, 1);
+        state.tasks.forEach(function (task) {
+          if (task.listId === list.id) task.listId = schema.INBOX_ID;
+        });
+        if (state.settings.listId === list.id) state.settings.listId = schema.INBOX_ID;
+      });
+      emit('list:add');
+      return list;
+    }
+
+    function renameList(id, name) {
+      if (id === schema.INBOX_ID) return null;
+      var list = findList(id);
+      var cleanName = util.cleanText(name, LIMITS.listName);
+      if (!list || !cleanName) return null;
+      if (list.name === cleanName) return list;
+
+      var before = list.name;
+      list.name = cleanName;
+      pushUndo('Список переименован', function () {
+        var current = findList(id);
+        if (current) current.name = before;
+      });
+      emit('list:update');
+      return list;
+    }
+
+    function setListColor(id, color) {
+      if (id === schema.INBOX_ID) return null;
+      var list = findList(id);
+      if (!list || !schema.isValidColor(color)) return null;
+      if (list.color === color) return list;
+
+      var before = list.color;
+      list.color = color;
+      pushUndo('Цвет списка изменён', function () {
+        var current = findList(id);
+        if (current) current.color = before;
+      });
+      emit('list:update');
+      return list;
+    }
+
+    /** Задачи удаляемого списка переезжают во «Входящие», чтобы не пропасть. */
+    function deleteList(id) {
+      if (id === schema.INBOX_ID) return null;
+      var index = -1;
+      for (var i = 0; i < state.lists.length; i += 1) {
+        if (state.lists[i].id === id) index = i;
+      }
+      if (index === -1) return null;
+
+      var list = state.lists[index];
+      var affected = state.tasks.filter(function (task) {
+        return task.listId === id;
+      });
+      var inboxMin = null;
+      state.tasks.forEach(function (task) {
+        if (task.listId !== schema.INBOX_ID) return;
+        if (inboxMin === null || task.order < inboxMin) inboxMin = task.order;
+      });
+      var basis = inboxMin === null ? 0 : inboxMin;
+      var moved = [];
+
+      affected.forEach(function (task, order) {
+        moved.push({ id: task.id, order: task.order });
+        task.listId = schema.INBOX_ID;
+        // Сохраняем взаимный порядок перенесённых задач.
+        task.order = basis - affected.length + order;
+      });
+
+      state.lists.splice(index, 1);
+      if (state.settings.listId === id) state.settings.listId = schema.INBOX_ID;
+
+      pushUndo('Удалён список', function () {
+        if (findList(id)) return;
+        state.lists.splice(Math.min(index, state.lists.length), 0, list);
+        moved.forEach(function (entry) {
+          var task = findTask(entry.id);
+          if (!task) return;
+          task.listId = id;
+          task.order = entry.order;
+        });
+      });
+      emit('list:delete');
+      return list;
+    }
+
+    // ——— Действия с подзадачами ———
+
+    function addSubtask(taskId, title) {
+      var task = findTask(taskId);
+      if (!task || task.subtasks.length >= LIMITS.subtasks) return null;
+      var clean = util.cleanText(title, LIMITS.subtaskTitle);
+      if (!clean) return null;
+
+      var subtasks = copySubtasks(task.subtasks);
+      subtasks.push({ id: createId('s_'), title: clean, done: false });
+      return updateTask(taskId, { subtasks: subtasks });
+    }
+
+    function toggleSubtask(taskId, subtaskId) {
+      var task = findTask(taskId);
+      if (!task) return null;
+      var found = false;
+      var subtasks = copySubtasks(task.subtasks).map(function (subtask) {
+        if (subtask.id !== subtaskId) return subtask;
+        found = true;
+        subtask.done = !subtask.done;
+        return subtask;
+      });
+      return found ? updateTask(taskId, { subtasks: subtasks }) : null;
+    }
+
+    function deleteSubtask(taskId, subtaskId) {
+      var task = findTask(taskId);
+      if (!task) return null;
+      var subtasks = copySubtasks(task.subtasks).filter(function (subtask) {
+        return subtask.id !== subtaskId;
+      });
+      if (subtasks.length === task.subtasks.length) return null;
+      return updateTask(taskId, { subtasks: subtasks });
+    }
+
     // ——— Настройки (тема, выбранный список, фильтры) ———
 
     function setSettings(patch) {
@@ -300,6 +440,13 @@
         toggleTask: toggleTask,
         updateTask: updateTask,
         deleteTask: deleteTask,
+        addList: addList,
+        renameList: renameList,
+        setListColor: setListColor,
+        deleteList: deleteList,
+        addSubtask: addSubtask,
+        toggleSubtask: toggleSubtask,
+        deleteSubtask: deleteSubtask,
         setSettings: setSettings
       }
     };
